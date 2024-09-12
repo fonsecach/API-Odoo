@@ -1,10 +1,9 @@
-def get_companies_info(models, db, uid, password, limit=5):
+def get_companies_info(models, db, uid, password, limit=100):
     """Busca e retorna informações detalhadas das empresas cadastradas, limitado pelo parâmetro limit."""
     fields_to_read = ['name', 'country_id', 'comment', 'email', 'phone', 'vat']
     domain = [['is_company', '=', True]]
 
     try:
-        # Buscar e ler informações das empresas
         companies_info = models.execute_kw(
             db,
             uid,
@@ -22,23 +21,55 @@ def get_companies_info(models, db, uid, password, limit=5):
         print(f'Erro ao buscar e ler informações das empresas: {e}')
         return []
 
+def get_company_by_vat(vat, models, db, uid, password):
+    fields_to_read = ['name', 'country_id', 'email', 'phone', 'vat']
+    domain = [['vat', '=', vat]]  # Usar o vat dinâmico
 
-def display_company_info(companies_info):
-    """Exibe as informações detalhadas de cada empresa de forma organizada."""
-    for company in companies_info:
-        name = company.get('name', 'N/A')
+    try:
+        companies_info = models.execute_kw(
+            db,
+            uid,
+            password,
+            'res.partner',
+            'search_read',
+            [domain],
+            {'fields': fields_to_read}
+        )
+        return companies_info
+    except Exception as e:
+        print(f'Erro ao buscar empresa pelo VAT {vat}: {e}')
+        return []
 
-        country = company.get('country_id')
-        country_name = country[1] if isinstance(country, list) and len(country) > 1 else 'País não informado'
+def get_company_by_id(id, models, db, uid, password):
+    fields_to_read = ['name', 'country_id', 'email', 'phone', 'vat']
+    domain = [['id', '=', id]]
 
-        comment = company.get('comment', 'Sem comentários')
-        email = company.get('email', 'Sem e-mail')
-        phone = company.get('phone', 'Sem telefone')
-        vat = company.get('vat', 'CNPJ não informado')
+    try:
+        companies_info = models.execute_kw(
+            db,
+            uid,
+            password,
+            'res.partner',
+            'search_read',
+            [domain],
+            {'fields': fields_to_read}
+        )
+        return companies_info
+    except Exception as e:
+        print(f'Erro ao buscar empresa pelo ID {id}: {e}')
+        return []
 
-        print(f'\nEmpresa: {name}')
-        print(f'CNPJ: {vat}')
-        print(f'País: {country_name}')
-        print(f'Comentário: {comment}')
-        print(f'E-mail: {email}')
-        print(f'Telefone: {phone}')
+def create_company_in_odoo(company_info, models, db, uid, password):
+    try:
+        company_id = models.execute_kw(
+            db,
+            uid,
+            password,
+            'res.partner',
+            'create',
+            [company_info]
+        )
+        return company_id
+    except Exception as e:
+        print(f'Erro ao criar empresa: {e}')
+        return None
