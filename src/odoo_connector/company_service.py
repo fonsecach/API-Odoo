@@ -22,8 +22,8 @@ def get_companies_info(models, db, uid, password, limit=100):
         return []
 
 def get_company_by_vat(vat, models, db, uid, password):
-    fields_to_read = ['name', 'country_id', 'email', 'phone', 'vat']
-    domain = [['vat', '=', vat]]  # Usar o vat dinâmico
+    fields_to_read = ['name', 'company_type', 'country_id', 'email', 'phone', 'vat']
+    domain = [['vat', '=', vat]]
 
     try:
         companies_info = models.execute_kw(
@@ -41,7 +41,7 @@ def get_company_by_vat(vat, models, db, uid, password):
         return []
 
 def get_company_by_id(id, models, db, uid, password):
-    fields_to_read = ['name', 'country_id', 'email', 'phone', 'vat']
+    fields_to_read = ['name', 'company_type', 'country_id', 'email', 'phone', 'vat']
     domain = [['id', '=', id]]
 
     try:
@@ -72,4 +72,35 @@ def create_company_in_odoo(company_info, models, db, uid, password):
         return company_id
     except Exception as e:
         print(f'Erro ao criar empresa: {e}')
+        return None
+
+def update_company_in_odoo(company_id, company_info, models, db, uid, password):
+    try:
+
+        success = models.execute_kw(
+            db,
+            uid,
+            password,
+            'res.partner',
+            'write',
+            [[company_id], company_info]
+        )
+        return success
+    except Exception as e:
+        print(f'Erro ao atualizar empresa: {e}')
+        return None
+
+def delete_company_in_odoo(company_id, models, db, uid, password):
+    try:
+        company_id = models.execute_kw(
+            db,
+            uid,
+            password,
+            'res.partner',
+            'unlink',
+            [company_id]
+        )
+        return company_id
+    except Exception as e:
+        print(f'Erro ao excluir empresa: {e}')
         return None
