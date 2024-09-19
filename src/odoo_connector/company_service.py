@@ -21,8 +21,27 @@ def get_companies_info(models, db, uid, password, limit=100):
         print(f'Erro ao buscar e ler informações das empresas: {e}')
         return []
 
+def get_clients_info(models, db, uid, password, limit=100):
+    try:
+        companies_info = models.execute_kw(
+            db,
+            uid,
+            password,
+            'res.partner',
+            'search_read',
+            [[]],  # Filtro vazio para buscar todos os registros
+            {
+                'limit': limit
+            }
+        )
+        return companies_info
+    except Exception as e:
+        print(f'Erro ao buscar e ler informações das empresas: {e}')
+        return []
+
+
+
 def get_company_by_vat(vat, models, db, uid, password):
-    fields_to_read = ['name', 'company_type', 'country_id', 'email', 'phone', 'vat']
     domain = [['vat', '=', vat]]
 
     try:
@@ -33,7 +52,6 @@ def get_company_by_vat(vat, models, db, uid, password):
             'res.partner',
             'search_read',
             [domain],
-            {'fields': fields_to_read}
         )
         return companies_info
     except Exception as e:
@@ -41,7 +59,6 @@ def get_company_by_vat(vat, models, db, uid, password):
         return []
 
 def get_company_by_id(id, models, db, uid, password):
-    fields_to_read = ['name', 'company_type', 'country_id', 'email', 'phone', 'vat']
     domain = [['id', '=', id]]
 
     try:
@@ -52,7 +69,6 @@ def get_company_by_id(id, models, db, uid, password):
             'res.partner',
             'search_read',
             [domain],
-            {'fields': fields_to_read}
         )
         return companies_info
     except Exception as e:
@@ -104,3 +120,4 @@ def delete_company_in_odoo(company_id, models, db, uid, password):
     except Exception as e:
         print(f'Erro ao excluir empresa: {e}')
         return None
+
