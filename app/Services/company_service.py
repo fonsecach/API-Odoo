@@ -1,5 +1,4 @@
 def get_companies_info(models, db, uid, password, limit=100):
-    """Busca e retorna informações detalhadas das empresas cadastradas, limitado pelo parâmetro limit."""
     fields_to_read = ['name', 'country_id', 'comment', 'email', 'phone', 'vat']
     domain = [['is_company', '=', True]]
 
@@ -29,7 +28,7 @@ def get_clients_info(models, db, uid, password, limit=100):
             password,
             'res.partner',
             'search_read',
-            [[]],  # Filtro vazio para buscar todos os registros
+            [[]],
             {
                 'limit': limit
             }
@@ -38,7 +37,6 @@ def get_clients_info(models, db, uid, password, limit=100):
     except Exception as e:
         print(f'Erro ao buscar e ler informações das empresas: {e}')
         return []
-
 
 
 def get_company_by_vat(vat, models, db, uid, password):

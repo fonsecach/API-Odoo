@@ -1,12 +1,12 @@
 from http import HTTPStatus
 from fastapi import APIRouter, HTTPException
 
-from src.models.models import Company_default, Company_return, Message
-from src.odoo_connector.authentication import connect_to_odoo, authenticate_odoo
-from src.odoo_connector.company_service import get_companies_info, get_company_by_vat, get_company_by_id, \
+from app.schemas.schemas import Company_default, Company_return, Message
+from app.Services.authentication import connect_to_odoo, authenticate_odoo
+from app.Services.company_service import get_companies_info, get_company_by_vat, get_company_by_id, \
     create_company_in_odoo, delete_company_in_odoo, update_company_in_odoo, get_clients_info
-from src.config.settings import ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD
-from src.utils.utils import clean_vat
+from app.config.settings import ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD
+from app.utils.utils import clean_vat
 
 router = APIRouter()
 

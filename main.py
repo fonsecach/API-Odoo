@@ -1,12 +1,15 @@
 from fastapi import FastAPI
-from src.api.company_endpoints import router as company_router
-from src.api.crm_endpoints import router as crm_router
+from app.routers.company_endpoints import router as company_router
+from app.routers.crm_endpoints import router as crm_router
+from app.routers.tasks_endpoints import router as tasks_router
 from scalar_fastapi import get_scalar_api_reference
 
 app = FastAPI()
 
-app.include_router(company_router, prefix="/api")
-app.include_router(crm_router, prefix="/api")
+app.include_router(company_router, prefix="/routers")
+app.include_router(crm_router, prefix="/routers")
+app.include_router(tasks_router, prefix="/routers")
+
 
 @app.get("/")
 async def root():
