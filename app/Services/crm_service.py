@@ -34,3 +34,17 @@ def get_opportunity_by_id(models, db, uid, password, opportunity_id):
         print(f'Erro ao buscar e ler informações da oportunidade: {e}')
         return []
 
+def create_opportunity_in_crm(opportunity_info, models, db, uid, password):
+    try:
+        opportunity_id = models.execute_kw(
+            db,
+            uid,
+            password,
+            'crm.lead',
+            'create',
+            [opportunity_info]
+        )
+        return opportunity_id
+    except Exception as e:
+        print(f'Erro ao criar oportunidade: {e}')
+        return None
