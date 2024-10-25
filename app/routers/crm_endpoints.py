@@ -81,7 +81,9 @@ async def create_opportunity(opportunity_info: Opportunity_default):
         "partner_id": opportunity_info.partner_id,
         "x_studio_tese": opportunity_info.x_studio_tese,
         "stage_id": opportunity_info.stage_id,
-        "user_id": opportunity_info.user_id
+        "user_id": opportunity_info.user_id,
+        'x_studio_omie_id': opportunity_info.x_studio_omie_id
+        #'x_studio_criao_no_omie': opportunity_info.x_studio_criao_no_omie
     }
 
 
