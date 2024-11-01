@@ -4,20 +4,15 @@ Este projeto é uma API desenvolvida em FastAPI para integração com o Odoo, pe
 >[!WARNING]
 >Em desenvolvimento, os metodos e endpoints poderão ser atualizados.
 
+![Screenshot 2024-11-01 at 11-48-08 FastAPI - ReDoc](https://github.com/user-attachments/assets/fba9ade1-f732-4ccb-9b19-de391a4d132d)
+
 ## Requisitos
 
 Certifique-se de que você tenha os seguintes softwares instalados no seu sistema:
 - Python 3.11.9
 - Git
 - Docker (opcional, para criar a imagem Docker)
-- Criar um arquivo .ENV e inserir suas credenciais
-
-```
-  URL = <insert server URL>
-  DB = <insert database name>
-  USERNAME = 'admin'
-  PASSWORD = <insert password for your admin user (default: admin)>
-```
+- Criar um arquivo .ENV e inserir suas credenciais do Odoo (Dúvida consultar https://www.odoo.com/documentation/master/developer/reference/external_api.html)
 
 ## Instalação
 
