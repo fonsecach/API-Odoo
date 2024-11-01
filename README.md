@@ -1,6 +1,8 @@
 # README - API FastAPI com Integração ao Odoo
 
 Este projeto é uma API desenvolvida em FastAPI para integração com o Odoo, permitindo operações como listagem e cadastro de empresas, gestão de oportunidades e mais.
+>[!WARNING]
+>Em desenvolvimento, os metodos e endpoints poderão ser atualizados.
 
 ## Requisitos
 
