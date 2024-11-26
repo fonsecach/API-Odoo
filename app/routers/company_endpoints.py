@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.get("/clients", summary="Lista clientes cadastrados")
-async def list_clients(limit: int = 100):
+async def list_clients(limit: int = 100, offset = 0):
 
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
@@ -20,7 +20,7 @@ async def list_clients(limit: int = 100):
     if not uid:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Falha na autenticação no Odoo")
 
-    clients_info = get_clients_info(models, ODOO_DB, uid, ODOO_PASSWORD, limit)
+    clients_info = get_clients_info(models, ODOO_DB, uid, ODOO_PASSWORD, limit, offset)
 
     if not clients_info:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail='Nenhum cliente localizado')
@@ -28,7 +28,7 @@ async def list_clients(limit: int = 100):
     return { "clients": clients_info}
 
 @router.get("/companies", summary="Lista empresas cadastradas")
-async def list_companies(limit: int = 100):
+async def list_companies(limit: int = 100, offset = 0):
 
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
@@ -36,7 +36,7 @@ async def list_companies(limit: int = 100):
     if not uid:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Falha na autenticação no Odoo")
 
-    companies_info = get_companies_info(models, ODOO_DB, uid, ODOO_PASSWORD, limit)
+    companies_info = get_companies_info(models, ODOO_DB, uid, ODOO_PASSWORD, limit, offset)
 
     if not companies_info:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail='Nenhuma empresa localizada')

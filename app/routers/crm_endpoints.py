@@ -3,7 +3,7 @@ from http import HTTPStatus
 from fastapi import APIRouter, HTTPException, status
 
 from app.Services.authentication import connect_to_odoo, authenticate_odoo
-from app.Services.crm_service import create_opportunity_in_crm
+from app.Services.crm_service import create_opportunity_in_crm, get_opportunities_info, get_opportunity_by_id
 from app.config.settings import ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD
 from app.schemas.schemas import Opportunity_return, Opportunity_default
 
@@ -19,7 +19,6 @@ async def list_opportunities(limit: int = 100, offset: int = 0):
     if not uid:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Falha na autenticação no Odoo")
 
-    from app.Services.crm_service import get_opportunities_info
     opportunities_info = get_opportunities_info(models, ODOO_DB, uid, ODOO_PASSWORD, limit, offset)
 
     if not opportunities_info:
@@ -37,7 +36,6 @@ async def get_opportunity_by_id(opportunity_id: int):
     if not uid:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Falha na autenticação no Odoo")
 
-    from app.Services.crm_service import get_opportunity_by_id
     opportunity_info = get_opportunity_by_id(models, ODOO_DB, uid, ODOO_PASSWORD, opportunity_id)
 
     if not opportunity_info:

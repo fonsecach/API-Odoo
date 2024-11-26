@@ -1,4 +1,4 @@
-def get_companies_info(models, db, uid, password, limit=100):
+def get_companies_info(models, db, uid, password, limit=100, offset=0):
     fields_to_read = ['name', 'country_id', 'comment', 'email', 'phone', 'vat']
     domain = [['is_company', '=', True]]
 
@@ -12,7 +12,8 @@ def get_companies_info(models, db, uid, password, limit=100):
             [domain],
             {
                 'fields': fields_to_read,
-                'limit': limit
+                'limit': limit,
+                'offset': offset
             }
         )
         return companies_info
@@ -20,7 +21,7 @@ def get_companies_info(models, db, uid, password, limit=100):
         print(f'Erro ao buscar e ler informações das empresas: {e}')
         return []
 
-def get_clients_info(models, db, uid, password, limit=100):
+def get_clients_info(models, db, uid, password, limit=100, offset=0):
     try:
         companies_info = models.execute_kw(
             db,
@@ -30,7 +31,8 @@ def get_clients_info(models, db, uid, password, limit=100):
             'search_read',
             [[]],
             {
-                'limit': limit
+                'limit': limit,
+                'offset': offset
             }
         )
         return companies_info
