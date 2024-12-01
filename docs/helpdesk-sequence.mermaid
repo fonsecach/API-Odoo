@@ -1,0 +1,84 @@
+sequenceDiagram
+    actor Client
+    participant FastAPI
+    participant HelpdeskEndpoints
+    participant Authentication
+    participant XMLRPCProxy
+    participant HelpdeskService
+    participant OdooServer
+
+    %% Fluxo para listar todos os tickets
+    Client->>FastAPI: GET /routers/tickets
+    FastAPI->>HelpdeskEndpoints: list_tickets()
+    
+    %% Processo detalhado de conexão XML-RPC
+    HelpdeskEndpoints->>Authentication: connect_to_odoo(url)
+    Authentication->>XMLRPCProxy: Create ServerProxy(/xmlrpc/2/common)
+    XMLRPCProxy-->>Authentication: common proxy
+    Authentication->>XMLRPCProxy: Create ServerProxy(/xmlrpc/2/object)
+    XMLRPCProxy-->>Authentication: models proxy
+    Authentication-->>HelpdeskEndpoints: common, models
+
+    %% Processo de autenticação
+    HelpdeskEndpoints->>Authentication: authenticate_odoo(common, db, username, password)
+    Authentication->>OdooServer: common.authenticate(db, username, password, {})
+    
+    alt Autenticação bem sucedida
+        OdooServer-->>Authentication: uid
+        Authentication-->>HelpdeskEndpoints: uid
+        HelpdeskEndpoints->>HelpdeskService: get_helpdesk_info(models, db, uid, password)
+        HelpdeskService->>OdooServer: execute_kw(search_read)
+        
+        alt Tickets encontrados
+            OdooServer-->>HelpdeskService: tickets_data
+            HelpdeskService-->>HelpdeskEndpoints: tickets_data
+            HelpdeskEndpoints-->>Client: HTTP 200 {chamados: tickets_data}
+        else Nenhum ticket encontrado
+            OdooServer-->>HelpdeskService: []
+            HelpdeskService-->>HelpdeskEndpoints: []
+            HelpdeskEndpoints-->>Client: HTTP 400 Bad Request
+        end
+        
+    else Autenticação falhou
+        OdooServer-->>Authentication: False/Error
+        Authentication-->>HelpdeskEndpoints: None
+        HelpdeskEndpoints-->>Client: HTTP 401 Unauthorized
+    end
+
+    %% Fluxo para tickets por team_id
+    Client->>FastAPI: GET /routers/tickets/{team_id}
+    FastAPI->>HelpdeskEndpoints: list_tickets_by_team_id()
+    
+    %% Reuso das conexões XML-RPC
+    HelpdeskEndpoints->>Authentication: connect_to_odoo(url)
+    Authentication->>XMLRPCProxy: Create ServerProxy(/xmlrpc/2/common)
+    XMLRPCProxy-->>Authentication: common proxy
+    Authentication->>XMLRPCProxy: Create ServerProxy(/xmlrpc/2/object)
+    XMLRPCProxy-->>Authentication: models proxy
+    Authentication-->>HelpdeskEndpoints: common, models
+
+    %% Autenticação para busca por team_id
+    HelpdeskEndpoints->>Authentication: authenticate_odoo(common, db, username, password)
+    Authentication->>OdooServer: common.authenticate(db, username, password, {})
+    
+    alt Autenticação bem sucedida
+        OdooServer-->>Authentication: uid
+        Authentication-->>HelpdeskEndpoints: uid
+        HelpdeskEndpoints->>HelpdeskService: get_helpdesk_info_by_team_id(models, db, uid, password, team_id)
+        HelpdeskService->>OdooServer: execute_kw(search_read with team_id)
+        
+        alt Tickets encontrados
+            OdooServer-->>HelpdeskService: team_tickets_data
+            HelpdeskService-->>HelpdeskEndpoints: team_tickets_data
+            HelpdeskEndpoints-->>Client: HTTP 200 {chamados: team_tickets_data}
+        else Nenhum ticket encontrado
+            OdooServer-->>HelpdeskService: []
+            HelpdeskService-->>HelpdeskEndpoints: []
+            HelpdeskEndpoints-->>Client: HTTP 400 Bad Request
+        end
+        
+    else Autenticação falhou
+        OdooServer-->>Authentication: False/Error
+        Authentication-->>HelpdeskEndpoints: None
+        HelpdeskEndpoints-->>Client: HTTP 401 Unauthorized
+    end

@@ -1,6 +1,5 @@
-from datetime import datetime
+from pydantic import BaseModel, EmailStr
 
-from pydantic import BaseModel, EmailStr, constr
 
 class Company_default(BaseModel):
     company_type: int = 0
@@ -26,7 +25,7 @@ class Opportunity_default(BaseModel):
     stage_id: int
     user_id: int
     x_studio_omie_id: str
-    #x_studio_criao_no_omie: datetime # ajustar o datetime, o oddo não aceita
+    # x_studio_criao_no_omie: datetime # ajustar o datetime, o oddo não aceita
 
 
 class Opportunity_return(Opportunity_default):

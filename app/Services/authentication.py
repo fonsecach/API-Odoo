@@ -1,8 +1,11 @@
 import xmlrpc.client
 
+
 def connect_to_odoo(url):
     """Cria e retorna o proxy para comunicação com o servidor Odoo via XML-RPC."""
-    return xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common'), xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object')
+    return xmlrpc.client.ServerProxy(
+        f'{url}/xmlrpc/2/common'
+    ), xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object')
 
 
 def authenticate_odoo(common, db, username, password):
