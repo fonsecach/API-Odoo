@@ -3,14 +3,15 @@
 Este projeto é uma API desenvolvida em FastAPI para integração com o Odoo, permitindo operações como listagem e cadastro de empresas, gestão de oportunidades e mais.
 >[!WARNING]
 >Em desenvolvimento, os metodos e endpoints poderão ser atualizados.
-
-![Screenshot 2024-11-01 at 11-48-08 FastAPI - ReDoc](https://github.com/user-attachments/assets/fba9ade1-f732-4ccb-9b19-de391a4d132d)
+>
+![Screenshot 2024-12-03 at 10-10-20 FastAPI](https://github.com/user-attachments/assets/0e1cdf02-647b-4ff1-87a4-1f2d4fc93ecf)
 
 ## Requisitos
 
 Certifique-se de que você tenha os seguintes softwares instalados no seu sistema:
-- Python 3.11.9
+- Python 3.11 ou superior
 - Git
+- UV python (opcional - melhora significativamente a experiencia de desenvolvimento)
 - Docker (opcional, para criar a imagem Docker)
 - Criar um arquivo .ENV e inserir suas credenciais do Odoo (Dúvida consultar https://www.odoo.com/documentation/master/developer/reference/external_api.html)
 
