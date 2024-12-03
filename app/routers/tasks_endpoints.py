@@ -9,10 +9,10 @@ from app.Services.tasks_project_service import (
     get_tasks_info,
 )
 
-router = APIRouter()
+router = APIRouter(prefix='/projects', tags=['Projetos'])
 
 
-@router.get('/tasks', summary='Lista tarefas cadastradas')
+@router.get('/', summary='Lista tarefas cadastradas')
 async def list_tasks(limit: int = 100, offset: int = 0):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
@@ -38,7 +38,7 @@ async def list_tasks(limit: int = 100, offset: int = 0):
 
 
 @router.get(
-    '/projects/{project_id}/tasks/{task_id}',
+    '/{project_id}/tasks/{task_id}',
     summary='Busca tarefa por ID dentro de um projeto específico',
 )
 async def get_task_by_project_and_id_route(project_id: int, task_id: int):

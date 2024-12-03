@@ -8,10 +8,10 @@ from app.routers.tasks_endpoints import router as tasks_router
 
 app = FastAPI()
 
-app.include_router(company_router, prefix='/routers')
-app.include_router(crm_router, prefix='/routers')
-app.include_router(tasks_router, prefix='/routers')
-app.include_router(helpdesk_router, prefix='/routers')
+app.include_router(company_router)
+app.include_router(crm_router)
+app.include_router(tasks_router)
+app.include_router(helpdesk_router)
 
 
 @app.get('/')

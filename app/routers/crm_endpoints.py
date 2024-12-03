@@ -11,10 +11,10 @@ from app.Services.crm_service import (
     get_opportunity_by_id,
 )
 
-router = APIRouter()
+router = APIRouter(prefix='/opportunities', tags=['Oportunidades'])
 
 
-@router.get('/opportunities', summary='Lista oportunidades cadastradas')
+@router.get('/', summary='Lista oportunidades cadastradas')
 async def list_opportunities(limit: int = 100, offset: int = 0):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
@@ -38,7 +38,7 @@ async def list_opportunities(limit: int = 100, offset: int = 0):
     return {'opportunities': opportunities_info}
 
 
-@router.get('/opportunities/{opportunity_id}', summary='Oportunidade pelo ID')
+@router.get('/{opportunity_id}', summary='Oportunidade pelo ID')
 async def get_opportunity_by_id(opportunity_id: int):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
@@ -63,7 +63,7 @@ async def get_opportunity_by_id(opportunity_id: int):
 
 
 @router.post(
-    '/opportunities',
+    '/',
     summary='Cadastrar uma oportunidade',
     status_code=status.HTTP_201_CREATED,
     response_model=Opportunity_return,

@@ -1,23 +1,3 @@
-def get_companies_info(models, db, uid, password, limit=100, offset=0):
-    fields_to_read = ['name', 'country_id', 'comment', 'email', 'phone', 'vat']
-    domain = [['is_company', '=', True]]
-
-    try:
-        companies_info = models.execute_kw(
-            db,
-            uid,
-            password,
-            'res.partner',
-            'search_read',
-            [domain],
-            {'fields': fields_to_read, 'limit': limit, 'offset': offset},
-        )
-        return companies_info
-    except Exception as e:
-        print(f'Erro ao buscar e ler informações das empresas: {e}')
-        return []
-
-
 def get_clients_info(models, db, uid, password, limit=100, offset=0):
     try:
         companies_info = models.execute_kw(

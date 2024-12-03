@@ -9,41 +9,15 @@ from app.Services.company_service import (
     create_company_in_odoo,
     delete_company_in_odoo,
     get_clients_info,
-    get_companies_info,
     get_company_by_id,
     get_company_by_vat,
     update_company_in_odoo,
 )
 from app.utils.utils import clean_vat
 
-router = APIRouter()
+router = APIRouter(prefix='/company', tags=['company'])
 
-
-@router.get('/clients', summary='Lista clientes cadastrados')
-async def list_clients(limit: int = 100, offset=0):
-    common, models = connect_to_odoo(ODOO_URL)
-    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-
-    if not uid:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Falha na autenticação no Odoo',
-        )
-
-    clients_info = get_clients_info(
-        models, ODOO_DB, uid, ODOO_PASSWORD, limit, offset
-    )
-
-    if not clients_info:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail='Nenhum cliente localizado',
-        )
-
-    return {'clients': clients_info}
-
-
-@router.get('/companies', summary='Lista empresas cadastradas')
+@router.get('/', summary='Lista empresas cadastradas')
 async def list_companies(limit: int = 100, offset=0):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
@@ -54,7 +28,7 @@ async def list_companies(limit: int = 100, offset=0):
             detail='Falha na autenticação no Odoo',
         )
 
-    companies_info = get_companies_info(
+    companies_info = get_clients_info(
         models, ODOO_DB, uid, ODOO_PASSWORD, limit, offset
     )
 
@@ -65,13 +39,12 @@ async def list_companies(limit: int = 100, offset=0):
         )
 
     return {
-        'total_companies': len(companies_info),
         'companies': companies_info,
     }
 
 
 @router.get(
-    '/companies/by_vat', summary='Lista empresas cadastradas pelo CNPJ'
+    '/vat', summary='Lista empresas cadastradas pelo CNPJ'
 )
 async def list_companies_by_vat(vat: str):
     try:
@@ -99,12 +72,11 @@ async def list_companies_by_vat(vat: str):
         )
 
     return {
-        'total_companies': len(companies_info),
         'companies': companies_info,
     }
 
 
-@router.get('/companies/by_id', summary='Lista empresas cadastradas pelo ID')
+@router.get('/id', summary='Lista empresas cadastradas pelo ID')
 async def list_companies_by_id(id: int):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
@@ -124,7 +96,6 @@ async def list_companies_by_id(id: int):
         )
 
     return {
-        'total_companies': len(companies_info),
         'companies': companies_info,
     }
 
@@ -133,7 +104,7 @@ from fastapi import status
 
 
 @router.post(
-    '/companies',
+    '',
     summary='Cadastrar uma empresa',
     status_code=status.HTTP_201_CREATED,
     response_model=Company_return,
@@ -184,7 +155,7 @@ async def create_company(company_info: Company_default):
 
 
 @router.put(
-    '/companies/{company_id}',
+    '/{company_id}',
     summary='Atualizar uma empresa',
     status_code=status.HTTP_200_OK,
 )
@@ -212,7 +183,7 @@ async def update_company(company_id: int, company_info: Company_default):
 
 
 @router.delete(
-    '/companies',
+    '/',
     summary='Excluir uma empresa',
     status_code=status.HTTP_200_OK,
     response_model=Message,
