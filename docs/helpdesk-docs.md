@@ -1,4 +1,4 @@
-# Sistema de Helpdesk - Documentação Técnica
+# Helpdesk - Documentação Técnica
 
 ## Visão Geral
 
@@ -8,9 +8,7 @@ O sistema de Helpdesk é uma API REST desenvolvida com FastAPI que se integra co
 
 ### Diagrama de Sequência
 
-
-
-![diagrama de sequencia](/home/cleiton/PycharmProjects/API-Odoo/docs/mermaid-diagram-2024-12-01-200004.png)
+![mermaid-diagram-2024-12-01-200004](https://github.com/user-attachments/assets/0cc86300-2d0e-40dc-9eed-8cf853ef1721)
 
 ## Endpoints
 
@@ -110,8 +108,8 @@ uv run fastapi dev main.py
 │       └── settings.py
 ├── tests/
 │   ├── conftest.py
-│   └── test_helpdesk.py
-│   │── ...
+│       └── test_helpdesk.py
+│       └── ...
 └── main.py
 ```
 
