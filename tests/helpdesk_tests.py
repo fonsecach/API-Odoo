@@ -1,18 +1,19 @@
-import pytest
-from unittest.mock import Mock, patch
 from http import HTTPStatus
+from unittest.mock import Mock, patch
+
+import pytest
 from fastapi import HTTPException
 
-from app.Services.helpdesk_service import (
-    get_helpdesk_info,
-    get_helpdesk_info_by_team_id,
-    get_helpdesk_info_by_team_and_id
-)
 from app.routers.helpdesk_endpoints import (
     list_tickets,
-    list_tickets_by_team_id
 )
 from app.Services.authentication import authenticate_odoo, connect_to_odoo
+from app.Services.helpdesk_service import (
+    get_helpdesk_info,
+    get_helpdesk_info_by_team_and_id,
+    get_helpdesk_info_by_team_id,
+)
+
 
 # Testes para helpdesk_service.py
 class TestHelpdeskService:
@@ -20,7 +21,7 @@ class TestHelpdeskService:
         # Arrange
         expected_data = [
             {'id': 1, 'name': 'Ticket 1'},
-            {'id': 2, 'name': 'Ticket 2'}
+            {'id': 2, 'name': 'Ticket 2'},
         ]
         mock_execute_kw.return_value = expected_data
 
@@ -30,9 +31,13 @@ class TestHelpdeskService:
         # Assert
         assert result == expected_data
         mock_execute_kw.assert_called_once_with(
-            'test_db', 1, 'password',
-            'helpdesk.ticket', 'search_read',
-            [[]], {'limit': 100, 'offset': 0}
+            'test_db',
+            1,
+            'password',
+            'helpdesk.ticket',
+            'search_read',
+            [[]],
+            {'limit': 100, 'offset': 0},
         )
 
     def test_get_helpdesk_info_empty(self, mock_models, mock_execute_kw):
@@ -55,30 +60,38 @@ class TestHelpdeskService:
         # Assert
         assert result == []
 
-    def test_get_helpdesk_info_by_team_id_success(self, mock_models, mock_execute_kw):
+    def test_get_helpdesk_info_by_team_id_success(
+        self, mock_models, mock_execute_kw
+    ):
         # Arrange
         expected_data = [
             {'id': 1, 'name': 'Ticket 1', 'team_id': 1},
-            {'id': 2, 'name': 'Ticket 2', 'team_id': 1}
+            {'id': 2, 'name': 'Ticket 2', 'team_id': 1},
         ]
         mock_execute_kw.return_value = expected_data
 
         # Act
-        result = get_helpdesk_info_by_team_id(mock_models, 'test_db', 1, 'password', 1)
+        result = get_helpdesk_info_by_team_id(
+            mock_models, 'test_db', 1, 'password', 1
+        )
 
         # Assert
         assert result == expected_data
         mock_execute_kw.assert_called_once_with(
-            'test_db', 1, 'password',
-            'helpdesk.ticket', 'search_read',
-            [[['team_id', '=', 1]]], {'limit': 100, 'offset': 0}
+            'test_db',
+            1,
+            'password',
+            'helpdesk.ticket',
+            'search_read',
+            [[['team_id', '=', 1]]],
+            {'limit': 100, 'offset': 0},
         )
 
-    def test_get_helpdesk_info_by_team_and_id_success(self, mock_models, mock_execute_kw):
+    def test_get_helpdesk_info_by_team_and_id_success(
+        self, mock_models, mock_execute_kw
+    ):
         # Arrange
-        expected_data = [
-            {'id': 1, 'name': 'Ticket 1', 'team_id': 1}
-        ]
+        expected_data = [{'id': 1, 'name': 'Ticket 1', 'team_id': 1}]
         mock_execute_kw.return_value = expected_data
 
         # Act
@@ -89,10 +102,14 @@ class TestHelpdeskService:
         # Assert
         assert result == expected_data
         mock_execute_kw.assert_called_once_with(
-            'test_db', 1, 'password',
-            'helpdesk.ticket', 'search_read',
-            [[['id', '=', 1], ['team_id', '=', 1]]]
+            'test_db',
+            1,
+            'password',
+            'helpdesk.ticket',
+            'search_read',
+            [[['id', '=', 1], ['team_id', '=', 1]]],
         )
+
 
 # Testes para helpdesk_endpoints.py
 class TestHelpdeskEndpoints:
@@ -111,8 +128,10 @@ class TestHelpdeskEndpoints:
         # Arrange
         mock_auth.return_value = 1
         expected_data = [{'id': 1, 'name': 'Ticket 1'}]
-        
-        with patch('app.routers.helpdesk_endpoints.get_helpdesk_info') as mock_get:
+
+        with patch(
+            'app.routers.helpdesk_endpoints.get_helpdesk_info'
+        ) as mock_get:
             mock_get.return_value = expected_data
 
             # Act
@@ -128,21 +147,24 @@ class TestHelpdeskEndpoints:
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             await list_tickets()
-        
+
         assert exc_info.value.status_code == HTTPStatus.UNAUTHORIZED
 
     async def test_list_tickets_no_data(self, mock_auth, mock_connect):
         # Arrange
         mock_auth.return_value = 1
-        
-        with patch('app.routers.helpdesk_endpoints.get_helpdesk_info') as mock_get:
+
+        with patch(
+            'app.routers.helpdesk_endpoints.get_helpdesk_info'
+        ) as mock_get:
             mock_get.return_value = []
 
             # Act & Assert
             with pytest.raises(HTTPException) as exc_info:
                 await list_tickets()
-            
+
             assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+
 
 # Testes para authentication.py
 class TestAuthentication:

@@ -29,3 +29,8 @@ select = ['I', 'F', 'E', 'W', 'PL', 'PT']
 [tool.ruff.format]
 preview = true
 quote-style = 'single'
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9.3",
+]

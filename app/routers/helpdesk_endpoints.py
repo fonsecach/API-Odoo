@@ -37,9 +37,7 @@ async def list_tickets(limit: int = 100, offset: int = 0):
     return {'chamados': helpdesk_info}
 
 
-@router.get(
-    '/{team_id}', summary='Lista todos os chamados abertos do time'
-)
+@router.get('/{team_id}', summary='Lista todos os chamados abertos do time')
 async def list_tickets_by_team_id(
     team_id: int, limit: int = 100, offset: int = 0
 ):
@@ -81,6 +79,35 @@ async def list_tickets_by_team_id(team_id: int, ticket_id: int):
 
     helpdesk_info = get_helpdesk_info_by_team_and_id(
         models, ODOO_DB, uid, ODOO_PASSWORD, team_id, ticket_id
+    )
+
+    if not helpdesk_info:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Nenhum chamado localizado',
+        )
+
+    return {'chamados': helpdesk_info}
+
+
+@router.get(
+    '/{team_id}/{stage_id}',
+    summary='Lista todos os chamados abertos do time por estágio',
+)
+async def list_tickets_by_team_and_stage_id(
+    team_id: int, stage_id: int, limit: int = 100, offset: int = 0
+):
+    common, models = connect_to_odoo(ODOO_URL)
+    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
+
+    if not uid:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Falha na autentificação no Odoo',
+        )
+
+    helpdesk_info = get_helpdesk_info_by_team_and_id(
+        models, ODOO_DB, uid, ODOO_PASSWORD, team_id, stage_id, limit, offset
     )
 
     if not helpdesk_info:

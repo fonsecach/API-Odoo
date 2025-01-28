@@ -17,6 +17,7 @@ from app.utils.utils import clean_vat
 
 router = APIRouter(prefix='/company', tags=['company'])
 
+
 @router.get('/', summary='Lista empresas cadastradas')
 async def list_companies(limit: int = 100, offset=0):
     common, models = connect_to_odoo(ODOO_URL)
@@ -43,9 +44,7 @@ async def list_companies(limit: int = 100, offset=0):
     }
 
 
-@router.get(
-    '/vat', summary='Lista empresas cadastradas pelo CNPJ'
-)
+@router.get('/vat', summary='Lista empresas cadastradas pelo CNPJ')
 async def list_companies_by_vat(vat: str):
     try:
         vat = clean_vat(vat)
