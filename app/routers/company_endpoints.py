@@ -12,6 +12,7 @@ from app.Services.company_service import (
     get_company_by_id,
     get_company_by_vat,
     update_company_in_odoo,
+    fetch_client_by_complete_name,
 )
 from app.utils.utils import clean_vat
 
@@ -44,7 +45,7 @@ async def list_companies(limit: int = 100, offset=0):
     }
 
 
-@router.get('/vat', summary='Lista empresas cadastradas pelo CNPJ')
+@router.get('/vat', summary='Lista empresa por CNPJ')
 async def list_companies_by_vat(vat: str):
     try:
         vat = clean_vat(vat)
@@ -72,6 +73,33 @@ async def list_companies_by_vat(vat: str):
 
     return {
         'companies': companies_info,
+    }
+    
+    
+@router.get('/name', summary='Retorna o cliente pelo nome da empresa')
+async def get_client_by_complete_name(name: str):
+
+    common, models = connect_to_odoo(ODOO_URL)
+    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
+
+    if not uid:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Falha na autenticação no Odoo',
+        )
+
+    companies_info = fetch_client_by_complete_name(
+        name, models, ODOO_DB, uid, ODOO_PASSWORD
+    )
+
+    if not companies_info:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Nenhuma empresa localizada',
+        )
+
+    return {
+        'client': companies_info,
     }
 
 

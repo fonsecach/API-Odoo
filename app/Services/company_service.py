@@ -32,6 +32,23 @@ def get_company_by_vat(vat, models, db, uid, password):
         print(f'Erro ao buscar empresa pelo VAT {vat}: {e}')
         return []
 
+def fetch_client_by_complete_name(name, models, db, uid, password):
+    domain = [['complete_name', '=', name]]
+
+    try:
+        companies_info = models.execute_kw(
+            db,
+            uid,
+            password,
+            'res.partner',
+            'search_read',
+            [domain],
+        )
+        return companies_info
+    except Exception as e:
+        print(f'Erro ao buscar cliente pelo nome {name}: {e}')
+        return []
+
 
 def get_company_by_id(id, models, db, uid, password):
     domain = [['id', '=', id]]
