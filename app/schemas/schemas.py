@@ -1,4 +1,6 @@
 from pydantic import BaseModel, EmailStr
+from datetime import datetime
+from typing import Dict
 
 
 class Company_default(BaseModel):
@@ -30,3 +32,14 @@ class Opportunity_default(BaseModel):
 
 class Opportunity_return(Opportunity_default):
     opportunity_id: int
+
+
+class HealthCheck(BaseModel):
+    status: str
+    version: str
+    timestamp: datetime
+    uptime: float
+
+
+class PingResponse(BaseModel):
+    status: str

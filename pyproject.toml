@@ -20,7 +20,7 @@ dependencies = [
 
 [tool.ruff]
 line-length = 79
-extend-exclude = ['migrations']
+extend-exclude = ['migrations', 'tests']
 
 [tool.ruff.lint]
 preview = true
