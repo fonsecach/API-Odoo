@@ -1,6 +1,6 @@
-from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from typing import Dict
+
+from pydantic import BaseModel, EmailStr
 
 
 class Company_default(BaseModel):
@@ -16,22 +16,27 @@ class Company_return(Company_default):
     company_id: int
 
 
-class Message(BaseModel):
-    message: str
-
-
 class Opportunity_default(BaseModel):
-    partner_id: int
     name: str
-    x_studio_tese: str
-    stage_id: int
+    contact_name: str
+    x_studio_tese: str | None
     user_id: int
-    x_studio_omie_id: str
-    # x_studio_criao_no_omie: datetime # ajustar o datetime, o oddo não aceita
-
+    team_id: int  
+    tag_ids: list[int] = []  
+    stage_id: int = 10
 
 class Opportunity_return(Opportunity_default):
     opportunity_id: int
+
+class PartnerNames(BaseModel):
+    names: list[str]
+
+class Config:
+    extra = "allow"
+
+
+class Message(BaseModel):
+    message: str
 
 
 class HealthCheck(BaseModel):

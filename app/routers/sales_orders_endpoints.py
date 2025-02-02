@@ -4,8 +4,11 @@ from fastapi import APIRouter, HTTPException
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
 from app.Services.authentication import authenticate_odoo, connect_to_odoo
-from app.Services.sales_orders import get_sales_order_by_id, get_sales_orders, search_sales_orders_by_name
-
+from app.Services.sales_orders import (
+    get_sales_order_by_id,
+    get_sales_orders,
+    search_sales_orders_by_name,
+)
 
 router = APIRouter(prefix='/sales_orders', tags=['Pedidos de venda'])
 
@@ -20,11 +23,11 @@ async def list_sales_orders(limit: int = 100, offset: int = 0):
             status_code=HTTPStatus.UNAUTHORIZED,
             detail='Falha na autenticação no Odoo',
         )
-    
+
     sales_orders_info = get_sales_orders(
         models, ODOO_DB, uid, ODOO_PASSWORD, limit, offset
     )
-    
+
     if not sales_orders_info:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -33,52 +36,50 @@ async def list_sales_orders(limit: int = 100, offset: int = 0):
 
     return {'sales_orders': sales_orders_info}
 
-@router.get('/{order_id}', 
-    summary='Busca pedido de venda por ID'
-)
+
+@router.get('/{order_id}', summary='Busca pedido de venda por ID')
 async def get_order_by_id(order_id: int):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-    
+
     if not uid:
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,
             detail='Falha na autenticação no Odoo',
         )
-    
+
     sales_order = get_sales_order_by_id(
         models, ODOO_DB, uid, ODOO_PASSWORD, order_id
     )
-    
+
     if not sales_order:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail=f'Pedido de venda com ID {order_id} não encontrado',
         )
-    
+
     return {'sales_order': sales_order}
 
-@router.get('/search/', 
-    summary='Busca pedidos de venda por nome'
-)
+
+@router.get('/search/', summary='Busca pedidos de venda por nome')
 async def search_orders_by_name(name: str, limit: int = 100, offset: int = 0):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-    
+
     if not uid:
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,
             detail='Falha na autenticação no Odoo',
         )
-    
+
     sales_orders = search_sales_orders_by_name(
         models, ODOO_DB, uid, ODOO_PASSWORD, name, limit, offset
     )
-    
+
     if not sales_orders:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail=f'Nenhum pedido de venda encontrado com o nome contendo "{name}"',
         )
-    
+
     return {'sales_orders': sales_orders}

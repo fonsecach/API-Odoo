@@ -1,3 +1,7 @@
+from http import HTTPStatus
+from fastapi import HTTPException
+
+
 def get_clients_info(models, db, uid, password, limit=100, offset=0):
     try:
         companies_info = models.execute_kw(
@@ -31,6 +35,7 @@ def get_company_by_vat(vat, models, db, uid, password):
     except Exception as e:
         print(f'Erro ao buscar empresa pelo VAT {vat}: {e}')
         return []
+
 
 def fetch_client_by_complete_name(name, models, db, uid, password):
     domain = [['complete_name', '=', name]]
@@ -106,3 +111,29 @@ def delete_company_in_odoo(company_id, models, db, uid, password):
     except Exception as e:
         print(f'Erro ao excluir empresa: {e}')
         return None
+
+
+def get_or_create_partner(contact_name, models, db, uid, password):
+    """Verifica se o cliente já existe, senão cria um novo."""
+    try:
+        # 🔹 Tenta encontrar o cliente pelo nome
+        existing_partners = models.execute_kw(
+            db, uid, password, 'res.partner', 'search_read',
+            [[['name', '=', contact_name]]], {'fields': ['id']}
+        )
+
+        if existing_partners:
+            return existing_partners[0]['id']  # Retorna o ID se já existir
+
+        # 🔹 Se não existir, cria um novo cliente
+        partner_id = models.execute_kw(
+            db, uid, password, 'res.partner', 'create',
+            [{'name': contact_name}]
+        )
+
+        return partner_id
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f'Erro ao buscar/criar cliente: {str(e)}',
+        )

@@ -8,11 +8,11 @@ from app.Services.authentication import authenticate_odoo, connect_to_odoo
 from app.Services.company_service import (
     create_company_in_odoo,
     delete_company_in_odoo,
+    fetch_client_by_complete_name,
     get_clients_info,
     get_company_by_id,
     get_company_by_vat,
     update_company_in_odoo,
-    fetch_client_by_complete_name,
 )
 from app.utils.utils import clean_vat
 
@@ -74,11 +74,10 @@ async def list_companies_by_vat(vat: str):
     return {
         'companies': companies_info,
     }
-    
-    
+
+
 @router.get('/name', summary='Retorna o cliente pelo nome da empresa')
 async def get_client_by_complete_name(name: str):
-
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
 
