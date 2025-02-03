@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr
 
@@ -25,11 +26,21 @@ class Opportunity_default(BaseModel):
     tag_ids: list[int] = []  
     stage_id: int = 10
 
+
 class Opportunity_return(Opportunity_default):
     opportunity_id: int
 
+
+class TarefaCreate(BaseModel):
+    name: str
+    projeto_id: int
+    stage_id: int
+    tese_task: str | None
+    
+
 class PartnerNames(BaseModel):
     names: list[str]
+
 
 class Config:
     extra = "allow"

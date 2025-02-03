@@ -9,6 +9,7 @@ from app.routers.sales_orders_endpoints import router as sales_orders_router
 from app.routers.tasks_endpoints import router as tasks_router
 from app.routers.migracao_endpoints import router as migracao_router
 
+
 app = FastAPI(
     title='API Odoo',
     description='API para integração com o ERP do Odoo',

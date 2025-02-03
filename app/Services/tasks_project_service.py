@@ -1,3 +1,7 @@
+from http import HTTPStatus
+from http.client import HTTPException
+
+
 def get_tasks_info(models, db, uid, password, limit=100, offset=0):
     try:
         tasks_info = models.execute_kw(
@@ -34,3 +38,5 @@ def get_task_by_project_and_id(models, db, uid, password, project_id, task_id):
     except Exception as e:
         print(f'Erro ao buscar e ler informações da tarefa: {e}')
         return None
+
+

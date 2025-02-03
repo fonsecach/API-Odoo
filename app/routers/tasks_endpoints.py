@@ -1,9 +1,12 @@
 from http import HTTPStatus
 
+
+from app.schemas.schemas import TarefaCreate
 from fastapi import APIRouter, HTTPException
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
 from app.Services.authentication import authenticate_odoo, connect_to_odoo
+from app.Services.company_service import get_or_create_partner
 from app.Services.tasks_project_service import (
     get_task_by_project_and_id,
     get_tasks_info,
@@ -62,3 +65,36 @@ async def get_task_by_project_and_id_route(project_id: int, task_id: int):
         )
 
     return {'task': task_info}
+
+
+@router.post("/", summary="Cria uma nova tarefa em um projeto")
+async def criar_tarefa(tarefa: TarefaCreate) -> dict:
+    try:
+        common, models = connect_to_odoo(ODOO_URL)
+        uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
+
+        if not uid:
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail='Falha na autenticação no Odoo',
+            )
+
+        # Cria a tarefa no Odoo
+        tarefa_id = models.execute_kw(
+            ODOO_DB, uid, ODOO_PASSWORD,
+            'project.task', 'create',
+            [{
+                'name': tarefa.name,
+                'project_id': tarefa.projeto_id,
+                'stage_id': tarefa.stage_id,
+                'x_studio_tese_task': tarefa.tese_task
+            }]
+        )
+
+        return {"mensagem": "Tarefa criada com sucesso!", "tarefa_id": tarefa_id}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao criar tarefa: {str(e)}"
+        )
