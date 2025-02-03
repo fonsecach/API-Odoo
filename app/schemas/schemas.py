@@ -33,7 +33,7 @@ class Opportunity_return(Opportunity_default):
 
 class TarefaCreate(BaseModel):
     name: str
-    projeto_id: int
+    project_id: int
     stage_id: int
     tese_task: str | None
     
