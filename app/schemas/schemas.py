@@ -37,6 +37,10 @@ class TarefaCreate(BaseModel):
     stage_id: int
     tese_task: str | None
     
+class TarefaUpdate(BaseModel):
+    x_studio_tese_2: str
+    x_studio_segmento: str
+    
 
 class PartnerNames(BaseModel):
     names: list[str]
