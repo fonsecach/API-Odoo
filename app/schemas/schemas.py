@@ -39,7 +39,7 @@ class TarefaCreate(BaseModel):
     
 class TarefaUpdate(BaseModel):
     x_studio_tese_2: str
-    x_studio_segmento: str
+    x_studio_segmento: str | None
     
 
 class PartnerNames(BaseModel):

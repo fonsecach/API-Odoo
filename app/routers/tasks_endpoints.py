@@ -100,7 +100,7 @@ async def criar_tarefa(tarefa: TarefaCreate) -> dict:
         )
         
 
-@router.put(
+@router.patch(
     '/{project_id}/tasks/{task_id}',
     summary='Atualiza campos específicos de uma tarefa',
     response_description='Campos atualizados com sucesso',
@@ -110,7 +110,6 @@ async def update_task_fields(
     task_id: int,
     tarefa_update: TarefaUpdate,
 ):
-    # Autenticação no Odoo
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
     
