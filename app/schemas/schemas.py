@@ -35,7 +35,8 @@ class TarefaCreate(BaseModel):
     name: str
     project_id: int
     stage_id: int
-    tese_task: str | None
+    x_studio_tese_2: str | None
+    x_studio_segmento: str | None
     
 class TarefaUpdate(BaseModel):
     x_studio_tese_2: str

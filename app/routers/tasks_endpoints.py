@@ -87,7 +87,8 @@ async def criar_tarefa(tarefa: TarefaCreate) -> dict:
                 'name': tarefa.name,
                 'project_id': tarefa.project_id,
                 'stage_id': tarefa.stage_id,
-                'x_studio_tese_task': tarefa.tese_task
+                'x_studio_tese_2': tarefa.x_studio_tese_2,
+                'x_studio_segmento': tarefa.x_studio_segmento
             }]
         )
 
