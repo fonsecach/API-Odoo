@@ -1,4 +1,3 @@
-
 def get_tasks_info(models, db, uid, password, limit=100, offset=0):
     try:
         tasks_info = models.execute_kw(

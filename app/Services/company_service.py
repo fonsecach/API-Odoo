@@ -1,4 +1,5 @@
 from http import HTTPStatus
+
 from fastapi import HTTPException
 
 
@@ -118,8 +119,13 @@ def get_or_create_partner(contact_name, models, db, uid, password):
     try:
         # 🔹 Tenta encontrar o cliente pelo nome
         existing_partners = models.execute_kw(
-            db, uid, password, 'res.partner', 'search_read',
-            [[['name', '=', contact_name]]], {'fields': ['id']}
+            db,
+            uid,
+            password,
+            'res.partner',
+            'search_read',
+            [[['name', '=', contact_name]]],
+            {'fields': ['id']},
         )
 
         if existing_partners:
@@ -127,8 +133,12 @@ def get_or_create_partner(contact_name, models, db, uid, password):
 
         # 🔹 Se não existir, cria um novo cliente
         partner_id = models.execute_kw(
-            db, uid, password, 'res.partner', 'create',
-            [{'name': contact_name}]
+            db,
+            uid,
+            password,
+            'res.partner',
+            'create',
+            [{'name': contact_name}],
         )
 
         return partner_id

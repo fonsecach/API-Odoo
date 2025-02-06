@@ -2,10 +2,10 @@ from http import HTTPStatus
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.Services.company_service import get_or_create_partner
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
 from app.schemas.schemas import Opportunity_default, Opportunity_return
 from app.Services.authentication import authenticate_odoo, connect_to_odoo
+from app.Services.company_service import get_or_create_partner
 from app.Services.crm_service import (
     create_opportunity_in_crm,
     fetch_opportunity_by_id,
@@ -89,8 +89,8 @@ async def create_opportunity(opportunity_info: Opportunity_default):
     # 🔹 Passo 2: Criar oportunidade no CRM
     opportunity_data = opportunity_info.dict(exclude_unset=True)
     opportunity_data.update({
-        "partner_id": partner_id,  # Associar cliente
-        "type": "opportunity",  # Definir como oportunidade (não lead)
+        'partner_id': partner_id,  # Associar cliente
+        'type': 'opportunity',  # Definir como oportunidade (não lead)
     })
 
     opportunity_id = create_opportunity_in_crm(
@@ -103,4 +103,4 @@ async def create_opportunity(opportunity_info: Opportunity_default):
             detail='Nenhuma oportunidade criada',
         )
 
-    return {"opportunity_id": opportunity_id, **opportunity_data}
+    return {'opportunity_id': opportunity_id, **opportunity_data}

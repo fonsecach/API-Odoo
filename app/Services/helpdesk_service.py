@@ -33,6 +33,7 @@ def get_helpdesk_info_by_team_id(
         print(f'Erro ao buscar e ler informações dos tickets: {e}')
         return []
 
+
 def get_helpdesk_info_by_team_and_id(
     models, db, uid, password, team_id, stage_id, limit=100, offset=0
 ):
