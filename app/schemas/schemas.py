@@ -15,7 +15,13 @@ class Company_default(BaseModel):
 class Company_return(Company_default):
     company_id: int
 
-
+# Utilizado no metodo para atualizar alguns campos do modelo de clientes
+class contact_update(BaseModel):
+    vat: str | None
+    x_studio_categoria_economica: str | None
+    company_type: str = 'company'
+    
+    
 class Opportunity_default(BaseModel):
     name: str
     contact_name: str

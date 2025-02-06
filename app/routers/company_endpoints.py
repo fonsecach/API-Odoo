@@ -3,7 +3,7 @@ from http import HTTPStatus
 from fastapi import APIRouter, HTTPException
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
-from app.schemas.schemas import Company_default, Company_return, Message
+from app.schemas.schemas import Company_default, Company_return, Message, contact_update
 from app.Services.authentication import authenticate_odoo, connect_to_odoo
 from app.Services.company_service import (
     create_company_in_odoo,
@@ -130,7 +130,7 @@ from fastapi import status
 
 
 @router.post(
-    '',
+    '/',
     summary='Cadastrar uma empresa',
     status_code=status.HTTP_201_CREATED,
     response_model=Company_return,
@@ -181,7 +181,7 @@ async def create_company(company_info: Company_default):
 
 
 @router.put(
-    '/{company_id}',
+    '/{id}',
     summary='Atualizar uma empresa',
     status_code=status.HTTP_200_OK,
 )
@@ -235,3 +235,55 @@ async def delete_company(company_id: int):
         )
 
     return {'message': 'User deleted'}
+
+
+@router.patch('/{id}',
+              summary='Atualizar o cnpj e segmento do cliente',
+              response_description='Cliente atualizado com sucesso!')
+async def update_client_fields(
+    id: int,
+    contact_update: contact_update,
+):
+    common, models = connect_to_odoo(ODOO_URL)
+    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
+    
+    if not uid:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Falha na autenticação no Odoo',
+        )
+        
+    contact_info = get_company_by_id(id, models, ODOO_DB, uid, ODOO_PASSWORD)
+    
+    #Atualiza os campos no odoo
+    try:
+        models.execute_kw(
+            ODOO_DB,
+            uid,
+            ODOO_PASSWORD,
+            'res.partner',
+            'write',
+            [
+                [id],
+                {
+                    'x_studio_categoria_economica': contact_update.x_studio_categoria_economica,
+                    'vat': contact_update.vat,
+                    'company_type': contact_update.company_type,
+                },
+            ],
+        )
+        return {
+            'message': 'Cliente atualizado com sucesso!',
+            'updated_fields': {
+                'x_studio_categoria_economica': contact_update.x_studio_categoria_economica,
+                'vat': contact_update.vat,
+                'company_type': contact_update.company_type
+            },
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f'Falha ao atualizar o cliente: {str(e)}',
+        )
+        
