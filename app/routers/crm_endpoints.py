@@ -60,7 +60,7 @@ async def get_opportunity_by_id(opportunity_id: int):
 
 
 @router.post(
-    '/',
+    '/v1/',
     summary='Cadastrar uma oportunidade',
     status_code=status.HTTP_201_CREATED,
     response_model=Opportunity_return,
@@ -101,6 +101,50 @@ async def create_opportunity(opportunity_info: Opportunity_default):
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail='Nenhuma oportunidade criada',
+        )
+
+    return {'opportunity_id': opportunity_id, **opportunity_data}
+
+@router.post(
+    '/v2',
+    summary='Cadastrar uma oportunidade',
+    status_code=status.HTTP_201_CREATED,
+    response_model=Opportunity_return,
+)
+async def create_opportunity(opportunity_info: Opportunity_default):
+    common, models = connect_to_odoo(ODOO_URL)
+    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
+
+    if not uid:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Falha na autenticação no Odoo',
+        )
+
+    # 🔹 Utilizar cliente já existente
+    partner_id = opportunity_info.partner_id
+
+    if not partner_id:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='ID do cliente não informado',
+        )
+
+    # 🔹 Criar oportunidade no CRM
+    opportunity_data = opportunity_info.dict(exclude_unset=True)
+    opportunity_data.update({
+        'partner_id': partner_id,
+        'type': 'opportunity',
+    })
+
+    try:
+        opportunity_id = create_opportunity_in_crm(
+            opportunity_data, models, ODOO_DB, uid, ODOO_PASSWORD
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f'Erro ao criar oportunidade: {str(e)}',
         )
 
     return {'opportunity_id': opportunity_id, **opportunity_data}

@@ -24,11 +24,10 @@ class contact_update(BaseModel):
     
 class Opportunity_default(BaseModel):
     name: str
-    contact_name: str
+    partner_id: int
     x_studio_tese: str | None
     user_id: int
     team_id: int
-    tag_ids: list[int] = []
     stage_id: int = 10
 
 
