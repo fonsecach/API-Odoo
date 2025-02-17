@@ -3,8 +3,10 @@ from http import HTTPStatus
 from fastapi import APIRouter, HTTPException
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
+from app.schemas.schemas import SaleOrderCreate
 from app.Services.authentication import authenticate_odoo, connect_to_odoo
 from app.Services.sales_orders import (
+    SalesOrderService,
     get_sales_order_by_id,
     get_sales_orders,
     search_sales_orders_by_name,
@@ -83,3 +85,26 @@ async def search_orders_by_name(name: str, limit: int = 100, offset: int = 0):
         )
 
     return {'sales_orders': sales_orders}
+
+
+@router.post('/', summary='Cria um novo pedido de venda', status_code=HTTPStatus.CREATED)
+async def create_sales_order(order: SaleOrderCreate):
+    try:
+        # Converte o schema Pydantic para um dicionário
+        order_data = order.dict()
+
+        # Chama o serviço para criar o pedido de venda
+        order_id = SalesOrderService.create_sales_order(order_data)
+
+        return {'order_id': order_id}
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Erro interno ao processar a requisição: {str(e)}",
+        )

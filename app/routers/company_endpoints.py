@@ -3,7 +3,12 @@ from http import HTTPStatus
 from fastapi import APIRouter, HTTPException
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
-from app.schemas.schemas import Company_default, Company_return, Message, contact_update
+from app.schemas.schemas import (
+    Company_default,
+    Company_return,
+    Message,
+    contact_update,
+)
 from app.Services.authentication import authenticate_odoo, connect_to_odoo
 from app.Services.company_service import (
     create_company_in_odoo,
@@ -246,16 +251,16 @@ async def update_client_fields(
 ):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-    
+
     if not uid:
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,
             detail='Falha na autenticação no Odoo',
         )
-        
+
     contact_info = get_company_by_id(id, models, ODOO_DB, uid, ODOO_PASSWORD)
-    
-    #Atualiza os campos no odoo
+
+    # Atualiza os campos no odoo
     try:
         models.execute_kw(
             ODOO_DB,
@@ -280,10 +285,9 @@ async def update_client_fields(
                 'company_type': contact_update.company_type
             },
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f'Falha ao atualizar o cliente: {str(e)}',
         )
-        

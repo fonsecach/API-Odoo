@@ -105,6 +105,7 @@ async def create_opportunity(opportunity_info: Opportunity_default):
 
     return {'opportunity_id': opportunity_id, **opportunity_data}
 
+
 @router.post(
     '/v2',
     summary='Cadastrar uma oportunidade',
