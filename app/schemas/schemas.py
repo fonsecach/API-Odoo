@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, Field
@@ -19,9 +19,8 @@ class Company_return(Company_default):
 
 # Utilizado no metodo para atualizar alguns campos do modelo de clientes
 class contact_update(BaseModel):
-    vat: str | None
-    x_studio_categoria_economica: str | None
-    company_type: str = 'company'
+    x_studio_certificado: str | None
+    x_studio_validade_da_procuracao: date | None
 
 
 class Opportunity_default(BaseModel):
@@ -45,6 +44,7 @@ class SaleOrderLine(BaseModel):
 
 class SaleOrderCreate(BaseModel):
     partner_id: int = Field(..., description="ID do cliente")
+    user_id: int = Field(..., description="ID do vendedor pelo pedido")
     opportunity_id: Optional[int] = Field(None, description="ID da oportunidade (crm.lead) vinculada")
     order_line: List[SaleOrderLine] = Field(..., description="Lista de itens do pedido")
     date_order: Optional[datetime] = Field(

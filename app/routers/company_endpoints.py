@@ -1,3 +1,4 @@
+import logging
 from http import HTTPStatus
 
 from fastapi import APIRouter, HTTPException
@@ -20,6 +21,10 @@ from app.Services.company_service import (
     update_company_in_odoo,
 )
 from app.utils.utils import clean_vat
+
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/company', tags=['company'])
 
@@ -242,51 +247,58 @@ async def delete_company(company_id: int):
     return {'message': 'User deleted'}
 
 
-@router.patch('/{id}',
-              summary='Atualizar o cnpj e segmento do cliente',
-              response_description='Cliente atualizado com sucesso!')
-async def update_client_fields(
-    id: int,
-    contact_update: contact_update,
-):
+@router.patch('/{id}', summary='Atualizar dados do cliente', response_description='Cliente atualizado com sucesso!')
+async def update_client_fields(id: int, contact_update: contact_update):
+    logger.info(f"Recebida requisição para atualizar cliente ID {id}")
+
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
 
     if not uid:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Falha na autenticação no Odoo',
-        )
+        logger.error("Falha na autenticação no Odoo")
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail='Falha na autenticação no Odoo')
 
     contact_info = get_company_by_id(id, models, ODOO_DB, uid, ODOO_PASSWORD)
+    if not contact_info:
+        logger.warning(f"Cliente ID {id} não encontrado no Odoo")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Cliente não encontrado no Odoo')
 
-    # Atualiza os campos no odoo
+    update_data = {
+        'x_studio_certificado': contact_update.x_studio_certificado or '',
+        'x_studio_validade_da_procuracao': (
+            contact_update.x_studio_validade_da_procuracao.strftime('%Y-%m-%d') 
+            if contact_update.x_studio_validade_da_procuracao 
+            else ''
+        ),
+    }
+
+    logger.info(f"Tentando atualizar cliente ID {id} com os seguintes valores: {update_data}")
+
     try:
-        models.execute_kw(
+        result = models.execute_kw(
             ODOO_DB,
             uid,
             ODOO_PASSWORD,
             'res.partner',
             'write',
-            [
-                [id],
-                {
-                    'x_studio_categoria_economica': contact_update.x_studio_categoria_economica,
-                    'vat': contact_update.vat,
-                    'company_type': contact_update.company_type,
-                },
-            ],
+            [[id], update_data],
         )
+
+        if result:
+            logger.info(f"Cliente ID {id} atualizado com sucesso")
+        else:
+            logger.warning(f"Falha ao atualizar cliente ID {id}. Odoo retornou {result}")
+
+        updated_contact = get_company_by_id(id, models, ODOO_DB, uid, ODOO_PASSWORD)
+        logger.info(f"Dados após atualização: {updated_contact}")
+
         return {
             'message': 'Cliente atualizado com sucesso!',
-            'updated_fields': {
-                'x_studio_categoria_economica': contact_update.x_studio_categoria_economica,
-                'vat': contact_update.vat,
-                'company_type': contact_update.company_type
-            },
+            'updated_fields': update_data,
         }
 
     except Exception as e:
+        logger.error(f"Erro ao atualizar cliente ID {id}: {str(e)}")
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f'Falha ao atualizar o cliente: {str(e)}',
