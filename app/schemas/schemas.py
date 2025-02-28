@@ -90,3 +90,58 @@ class HealthCheck(BaseModel):
 
 class PingResponse(BaseModel):
     status: str
+
+
+# para teste
+
+class OpportunityCreate(BaseModel):
+    name: str = Field(..., description="Nome da oportunidade")
+    partner_id: int = Field(..., description="ID do cliente/parceiro")
+    expected_revenue: float = Field(0.0, description="Receita esperada")
+    probability: Optional[float] = Field(None, description="Probabilidade de fechamento (%)")
+    date_deadline: Optional[str] = Field(None, description="Data limite (YYYY-MM-DD)")
+    user_id: Optional[int] = Field(None, description="Responsável pela oportunidade")
+    team_id: Optional[int] = Field(None, description="Equipe de vendas")
+    description: Optional[str] = Field(None, description="Descrição da oportunidade")
+    priority: Optional[str] = Field(None, description="Prioridade (0=Baixa, 1=Normal, 2=Alta, 3=Muito Alta)")
+    tag_ids: Optional[List[int]] = Field(None, description="Lista de IDs das tags")
+    company_id: Optional[int] = Field(None, description="ID da empresa relacionada")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "name": "Oportunidade de Venda - Cliente ABC",
+                "partner_id": 42,
+                "expected_revenue": 10000.00,
+                "probability": 50.0,
+                "date_deadline": "2023-12-31",
+                "user_id": 5,
+                "team_id": 1,
+                "description": "Potencial venda de serviços de consultoria",
+                "priority": "1",
+                "tag_ids": [1, 4, 7],
+                "company_id": 1
+            }
+        }
+
+
+class OpportunityReturn(BaseModel):
+    opportunity_id: int
+    name: str
+    partner_id: List[int]
+    expected_revenue: float
+    probability: Optional[float]
+    stage_id: List[int]
+    company_id: Optional[int]
+
+
+class AttachmentInfo(BaseModel):
+    attachment_id: int
+    filename: str
+
+
+class OpportunityCreateResponse(BaseModel):
+    message: str
+    opportunity_id: int
+    opportunity_details: OpportunityReturn
+    attachments: List[AttachmentInfo]

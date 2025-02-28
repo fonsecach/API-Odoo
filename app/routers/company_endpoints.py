@@ -22,7 +22,6 @@ from app.Services.company_service import (
 )
 from app.utils.utils import clean_vat
 
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -266,8 +265,8 @@ async def update_client_fields(id: int, contact_update: contact_update):
     update_data = {
         'x_studio_certificado': contact_update.x_studio_certificado or '',
         'x_studio_validade_da_procuracao': (
-            contact_update.x_studio_validade_da_procuracao.strftime('%Y-%m-%d') 
-            if contact_update.x_studio_validade_da_procuracao 
+            contact_update.x_studio_validade_da_procuracao.strftime('%Y-%m-%d')
+            if contact_update.x_studio_validade_da_procuracao
             else ''
         ),
     }
