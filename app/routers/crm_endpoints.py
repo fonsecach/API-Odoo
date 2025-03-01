@@ -15,10 +15,9 @@ from fastapi import (
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
 from app.schemas.schemas import (
     AttachmentInfo,
-    Opportunity_default,
-    Opportunity_return,
     OpportunityCreate,
     OpportunityCreateResponse,
+    OpportunityDefault,
     OpportunityReturn,
 )
 from app.Services.authentication import authenticate_odoo, connect_to_odoo
@@ -80,9 +79,9 @@ async def get_opportunity_by_id(opportunity_id: int):
     '/v1/',
     summary='Cadastrar uma oportunidade',
     status_code=status.HTTP_201_CREATED,
-    response_model=Opportunity_return,
+    response_model=OpportunityReturn,
 )
-async def create_opportunity(opportunity_info: Opportunity_default):
+async def create_opportunity(opportunity_info: OpportunityDefault):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
 
@@ -127,9 +126,9 @@ async def create_opportunity(opportunity_info: Opportunity_default):
     '/v2',
     summary='Cadastrar uma oportunidade',
     status_code=status.HTTP_201_CREATED,
-    response_model=Opportunity_return,
+    response_model=OpportunityReturn,
 )
-async def create_opportunity(opportunity_info: Opportunity_default):
+async def create_opportunity(opportunity_info: OpportunityDefault):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
 

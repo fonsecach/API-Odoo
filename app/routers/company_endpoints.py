@@ -5,10 +5,10 @@ from fastapi import APIRouter, HTTPException
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
 from app.schemas.schemas import (
-    Company_default,
-    Company_return,
+    CompanyDefault,
+    CompanyReturn,
+    ContactUpdate,
     Message,
-    contact_update,
 )
 from app.Services.authentication import authenticate_odoo, connect_to_odoo
 from app.Services.company_service import (
@@ -142,9 +142,9 @@ from fastapi import status
     '/',
     summary='Cadastrar uma empresa',
     status_code=status.HTTP_201_CREATED,
-    response_model=Company_return,
+    response_model=CompanyReturn,
 )
-async def create_company(company_info: Company_default):
+async def create_company(company_info: CompanyDefault):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
 
@@ -192,9 +192,9 @@ async def create_company(company_info: Company_default):
 @router.put(
     '/{id}',
     summary='Atualizar uma empresa',
-    status_code=status.HTTP_200_OK,
+    status_code=HTTPStatus.OK,
 )
-async def update_company(company_id: int, company_info: Company_default):
+async def update_company(company_id: int, company_info: CompanyDefault):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
 
@@ -247,7 +247,7 @@ async def delete_company(company_id: int):
 
 
 @router.patch('/{id}', summary='Atualizar dados do cliente', response_description='Cliente atualizado com sucesso!')
-async def update_client_fields(id: int, contact_update: contact_update):
+async def update_client_fields(id: int, contact_update: ContactUpdate):
     logger.info(f"Recebida requisição para atualizar cliente ID {id}")
 
     common, models = connect_to_odoo(ODOO_URL)
