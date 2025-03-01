@@ -132,6 +132,7 @@ class SalesOrderService:
             # Preparar os valores para criação do pedido de venda
             order_vals = {
                 'partner_id': order_data["partner_id"],
+                'user_id': order_data["user_id"],
                 'order_line': order_lines,
                 'date_order': date_order,
                 'client_order_ref': order_data.get("client_order_ref"),
