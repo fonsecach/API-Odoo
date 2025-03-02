@@ -217,6 +217,18 @@ class SaleOrderCreate(BaseModel):
     )
 
 
+class SaleOrderUpdate(BaseModel):
+    # Modelo para atualização de campos específicos de pedidos de venda.
+    user_id: Optional[int] = Field(
+        None,
+        description="ID do vendedor responsável pelo pedido"
+    )
+    type_name: Optional[str] = Field(
+        None,
+        description="Tipo do pedido"
+    )
+
+
 # ------------ Esquemas de Tarefas de Projeto ------------
 
 class TarefaCreate(BaseModel):
