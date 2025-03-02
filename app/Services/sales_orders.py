@@ -1,6 +1,6 @@
 from datetime import datetime
 from http import HTTPStatus
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
 
@@ -9,6 +9,13 @@ from app.Services.authentication import authenticate_odoo, connect_to_odoo
 
 
 def get_sales_orders(models, db, uid, password, limit=100, offset=0):
+    """
+    Obtém uma lista de pedidos de venda do Odoo.
+    
+    :param limit: Limite de registros a serem retornados
+    :param offset: Deslocamento para paginação
+    :return: Lista de pedidos ou lista vazia em caso de erro
+    """
     try:
         sales_order_info = models.execute_kw(
             db,
@@ -21,11 +28,17 @@ def get_sales_orders(models, db, uid, password, limit=100, offset=0):
         )
         return sales_order_info
     except Exception as e:
-        print(f'Erro ao buscar as informaçoões dos pedidos de venda: {e}')
+        print(f'Erro ao buscar as informações dos pedidos de venda: {e}')
         return []
 
 
 def get_sales_order_by_id(models, db, uid, password, order_id):
+    """
+    Busca um pedido de venda específico pelo ID.
+    
+    :param order_id: ID do pedido a ser buscado
+    :return: Dados do pedido ou None se não encontrado
+    """
     try:
         sales_order = models.execute_kw(
             db,
@@ -45,6 +58,14 @@ def get_sales_order_by_id(models, db, uid, password, order_id):
 def search_sales_orders_by_name(
     models, db, uid, password, name, limit=100, offset=0
 ):
+    """
+    Busca pedidos de venda pelo nome ou nome do cliente.
+    
+    :param name: Termo de busca para o nome
+    :param limit: Limite de registros a serem retornados
+    :param offset: Deslocamento para paginação
+    :return: Lista de pedidos encontrados ou lista vazia
+    """
     try:
         domain = [
             '|',
@@ -68,18 +89,24 @@ def search_sales_orders_by_name(
 
 
 def create_sales_order_in_odoo(order_data: dict, models, db, uid, password):
+    """
+    Cria um novo pedido de venda no Odoo.
+    
+    :param order_data: Dados do pedido de venda
+    :return: ID do pedido criado ou exceção em caso de erro
+    """
     try:
         # Prepara as linhas do pedido no formato esperado pelo Odoo
         order_lines = []
         for line in order_data.pop('order_line'):
-            order_line = [0, 0, {
+            line_data = {
                 'product_id': line['product_id'],
                 'product_uom_qty': line['product_uom_qty'],
                 'price_unit': line['price_unit']
-            }]
+            }
             if line.get('name'):
-                order_line[2]['name'] = line['name']
-            order_lines.append(order_line)
+                line_data['name'] = line['name']
+            order_lines.append((0, 0, line_data))
 
         # Adiciona as linhas do pedido aos dados
         order_data['order_line'] = order_lines
@@ -100,13 +127,19 @@ def create_sales_order_in_odoo(order_data: dict, models, db, uid, password):
 
 
 class SalesOrderService:
+    """
+    Serviço para manipulação de pedidos de venda no Odoo.
+    Contém métodos para criar, buscar e atualizar pedidos.
+    """
+    
     @staticmethod
     def create_sales_order(order_data: Dict[str, Any]) -> int:
         """
-        Cria um pedido de venda no Odoo.
+        Cria um pedido de venda no Odoo e vincula a uma oportunidade se fornecido.
 
-        :param order_data: Dados do pedido de venda.
-        :return: ID do pedido criado.
+        :param order_data: Dados do pedido de venda
+        :return: ID do pedido criado
+        :raises ValueError: Se falhar a autenticação, validação ou criação
         """
         common, models = connect_to_odoo(ODOO_URL)
         uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
@@ -115,35 +148,72 @@ class SalesOrderService:
             raise ValueError("Falha na autenticação no Odoo")
 
         try:
-            # Preparar os dados para criação do pedido de venda
+            # Prepara as linhas do pedido
             order_lines = []
-            for line in order_data["order_line"]:
-                order_lines.append((0, 0, {
-                    'product_id': line["product_id"],
-                    'product_uom_qty': line["product_uom_qty"],
-                    'price_unit': line["price_unit"],
-                }))
+            
+            # Se não houver linhas de pedido, adiciona uma linha com valores default
+            if not order_data.get("order_line"):
+                default_line = {
+                    'product_id': 119,
+                    'product_uom_qty': 1,
+                    'price_unit': 1,
+                }
+                order_lines.append((0, 0, default_line))
+            else:
+                for line in order_data.get("order_line", []):
+                    line_data = {
+                        'product_id': line.get("product_id", 119),
+                        'product_uom_qty': line.get("product_uom_qty", 1),
+                        'price_unit': line.get("price_unit", 1),
+                    }
+                    # Adiciona descrição se disponível
+                    if "name" in line:
+                        line_data["name"] = line["name"]
+                        
+                    order_lines.append((0, 0, line_data))
 
-            # Converter o campo date_order para string no formato esperado pelo Odoo
-            date_order = order_data.get("date_order")
-            if date_order and isinstance(date_order, datetime):
-                date_order = date_order.strftime("%Y-%m-%d %H:%M:%S")
-
-            # Preparar os valores para criação do pedido de venda
+            # Dados obrigatórios para o pedido
             order_vals = {
-                'partner_id': order_data["partner_id"],
-                'user_id': order_data["user_id"],
+                'partner_id': order_data.get("partner_id"),
                 'order_line': order_lines,
-                'date_order': date_order,
-                'client_order_ref': order_data.get("client_order_ref"),
-                'type_name': order_data.get("type_name", "Pedido de venda")
+                'user_id': order_data.get("user_id", 3),  # Default user_id = 3
             }
-
-            # Adicionar opportunity_id se estiver presente
+                
+            # Formata data do pedido para o formato esperado pelo Odoo
+            date_order = order_data.get("date_order")
+            if date_order:
+                if isinstance(date_order, datetime):
+                    date_order = date_order.strftime("%Y-%m-%d %H:%M:%S")
+                order_vals["date_order"] = date_order
+            else:
+                # Se não foi fornecida uma data, usa a data atual
+                order_vals["date_order"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+            # Adiciona referência do cliente se fornecida
+            if "client_order_ref" in order_data:
+                order_vals["client_order_ref"] = order_data["client_order_ref"]
+                
+            # Adiciona o tipo do pedido (com valor default se não fornecido)
+            order_vals["type_name"] = order_data.get("type_name", "Pedido de venda")
+                
+            # Verifica e vincula oportunidade se fornecida
             if "opportunity_id" in order_data and order_data["opportunity_id"] is not None:
-                order_vals["opportunity_id"] = order_data["opportunity_id"]
+                # Verifica se a oportunidade existe
+                opportunity_exists = models.execute_kw(
+                    ODOO_DB,
+                    uid,
+                    ODOO_PASSWORD,
+                    'crm.lead',
+                    'search_count',
+                    [[['id', '=', order_data["opportunity_id"]]]]
+                )
+                
+                if opportunity_exists:
+                    order_vals["opportunity_id"] = order_data["opportunity_id"]
+                else:
+                    raise ValueError(f"Oportunidade com ID {order_data['opportunity_id']} não existe")
 
-            # Criar o pedido de venda no Odoo
+            # Cria o pedido de venda no Odoo
             order_id = models.execute_kw(
                 ODOO_DB,
                 uid,
