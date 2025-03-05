@@ -1,6 +1,6 @@
 from datetime import datetime
 from http import HTTPStatus
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from fastapi import HTTPException
 
@@ -131,7 +131,7 @@ class SalesOrderService:
     Serviço para manipulação de pedidos de venda no Odoo.
     Contém métodos para criar, buscar e atualizar pedidos.
     """
-    
+
     @staticmethod
     def create_sales_order(order_data: Dict[str, Any]) -> int:
         """
@@ -150,7 +150,7 @@ class SalesOrderService:
         try:
             # Prepara as linhas do pedido
             order_lines = []
-            
+
             # Se não houver linhas de pedido, adiciona uma linha com valores default
             if not order_data.get("order_line"):
                 default_line = {
@@ -169,7 +169,7 @@ class SalesOrderService:
                     # Adiciona descrição se disponível
                     if "name" in line:
                         line_data["name"] = line["name"]
-                        
+
                     order_lines.append((0, 0, line_data))
 
             # Dados obrigatórios para o pedido
@@ -178,7 +178,7 @@ class SalesOrderService:
                 'order_line': order_lines,
                 'user_id': order_data.get("user_id", 3),  # Default user_id = 3
             }
-                
+
             # Formata data do pedido para o formato esperado pelo Odoo
             date_order = order_data.get("date_order")
             if date_order:
@@ -188,14 +188,14 @@ class SalesOrderService:
             else:
                 # Se não foi fornecida uma data, usa a data atual
                 order_vals["date_order"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                
+
             # Adiciona referência do cliente se fornecida
             if "client_order_ref" in order_data:
                 order_vals["client_order_ref"] = order_data["client_order_ref"]
-                
+
             # Adiciona o tipo do pedido (com valor default se não fornecido)
             order_vals["type_name"] = order_data.get("type_name", "Pedido de venda")
-                
+
             # Verifica e vincula oportunidade se fornecida
             if "opportunity_id" in order_data and order_data["opportunity_id"] is not None:
                 # Verifica se a oportunidade existe
@@ -207,7 +207,7 @@ class SalesOrderService:
                     'search_count',
                     [[['id', '=', order_data["opportunity_id"]]]]
                 )
-                
+
                 if opportunity_exists:
                     order_vals["opportunity_id"] = order_data["opportunity_id"]
                 else:
@@ -230,3 +230,25 @@ class SalesOrderService:
 
         except Exception as e:
             raise ValueError(f"Erro ao criar o pedido de venda: {str(e)}")
+
+
+def update_sales_order_fields(models, db, uid, password, order_id, fields_data):
+    """
+    Atualiza campos específicos de um pedido de venda.
+    :param order_id: ID do pedido a ser atualizado
+    :param fields_data: Dicionário com os campos a serem atualizados
+    :return: True se bem-sucedido, None se falhar
+    """
+    try:
+        success = models.execute_kw(
+            db,
+            uid,
+            password,
+            'sale.order',
+            'write',
+            [[order_id], fields_data],
+        )
+        return success
+    except Exception as e:
+        print(f'Erro ao atualizar campos do pedido de venda: {e}')
+        return None
