@@ -251,6 +251,14 @@ class TaskSaleOrderUpdate(BaseModel):
     """Modelo para vincular tarefa a pedido de venda."""
     task_id: int
     sale_order_id: int
+    
+
+class TaskStageUpdate(BaseModel):
+    #Modelo para atualização de estágio de tarefa.
+    stage_id: int = Field(
+        ...,
+        description="ID do estágio para o qual a tarefa deve ser movida"
+    )
 
 
 # ------------ Outros Esquemas ------------

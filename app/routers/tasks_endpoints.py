@@ -4,7 +4,7 @@ from http import HTTPStatus
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
-from app.schemas.schemas import TarefaCreate, TarefaUpdate, TaskSaleOrderUpdate
+from app.schemas.schemas import TarefaCreate, TarefaUpdate, TaskSaleOrderUpdate, TaskStageUpdate
 from app.Services.authentication import authenticate_odoo, connect_to_odoo
 from app.Services.sales_orders import get_sales_order_by_id
 from app.Services.tasks_project_service import (
@@ -12,9 +12,11 @@ from app.Services.tasks_project_service import (
     create_task_attachment,
     get_task_by_id,
     get_task_by_project_and_id,
+    get_tasks_by_stage_name,
     get_tasks_info,
     update_task_fields,
     update_task_sale_order,
+    update_task_stage,
 )
 
 router = APIRouter(prefix='/projects', tags=['Projetos'])
@@ -308,3 +310,122 @@ async def add_task_attachment_route(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f"Erro ao anexar arquivo: {str(e)}",
         )
+
+@router.get(
+    '/{project_id}/tasks/stage/{stage_name}',
+    summary='Busca tarefas por nome do estágio dentro de um projeto',
+    response_description='Lista de tarefas no estágio especificado'
+)
+async def get_tasks_by_stage_name_route(
+    project_id: int,
+    stage_name: str,
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    Endpoint para buscar tarefas por nome do estágio dentro de um projeto específico.
+    
+    :param project_id: ID do projeto
+    :param stage_name: Nome do estágio para filtrar
+    :param limit: Limite de registros a serem retornados
+    :param offset: Deslocamento para paginação
+    :return: Lista de tarefas que correspondem ao filtro
+    """
+    common, models = connect_to_odoo(ODOO_URL)
+    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
+
+    if not uid:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Falha na autenticação no Odoo',
+        )
+
+    tasks_info = get_tasks_by_stage_name(
+        models, ODOO_DB, uid, ODOO_PASSWORD, project_id, stage_name, limit, offset
+    )
+
+    if not tasks_info:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f'Nenhuma tarefa encontrada no estágio "{stage_name}" para o projeto especificado',
+        )
+
+    return {
+        'project_id': project_id,
+        'stage_name': stage_name,
+        'tasks': tasks_info,
+        'count': len(tasks_info)
+    }
+
+
+@router.patch(
+    '/tasks/{task_id}/stage',
+    summary='Atualiza o estágio de uma tarefa',
+    response_description='Estágio da tarefa atualizado com sucesso'
+)
+async def update_task_stage_route(
+    task_id: int,
+    task_stage_update: TaskStageUpdate
+):
+    """
+    Endpoint para atualizar o estágio de uma tarefa específica.
+    
+    :param task_id: ID da tarefa a ser atualizada
+    :param task_stage_update: Dados para atualização contendo o novo stage_id
+    :return: Confirmação da atualização
+    """
+    common, models = connect_to_odoo(ODOO_URL)
+    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
+
+    if not uid:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Falha na autenticação no Odoo',
+        )
+
+    # Verifica se a tarefa existe
+    task_info = get_task_by_id(
+        models, ODOO_DB, uid, ODOO_PASSWORD, task_id
+    )
+
+    if not task_info:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f'Tarefa com ID {task_id} não encontrada',
+        )
+
+    # Verifica se o estágio existe
+    stage_info = models.execute_kw(
+        ODOO_DB,
+        uid,
+        ODOO_PASSWORD,
+        'project.task.type',
+        'search_read',
+        [[['id', '=', task_stage_update.stage_id]]],
+        {'fields': ['id', 'name']}
+    )
+
+    if not stage_info:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f'Estágio com ID {task_stage_update.stage_id} não encontrado',
+        )
+
+    # Atualiza o estágio da tarefa
+    success = update_task_stage(
+        models, ODOO_DB, uid, ODOO_PASSWORD, task_id, task_stage_update.stage_id
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail='Falha ao atualizar o estágio da tarefa',
+        )
+
+    return {
+        'message': 'Estágio da tarefa atualizado com sucesso',
+        'task_id': task_id,
+        'old_stage_id': task_info['stage_id'][0] if isinstance(task_info['stage_id'], list) else task_info['stage_id'],
+        'new_stage_id': task_stage_update.stage_id,
+        'new_stage_name': stage_info[0]['name'],
+    }

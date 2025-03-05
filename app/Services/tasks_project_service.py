@@ -165,3 +165,71 @@ def create_task_attachment(models, db, uid, password, task_id, file_name, file_c
     except Exception as e:
         print(f'Erro ao anexar arquivo à tarefa: {e}')
         return None
+
+
+def get_tasks_by_stage_name(models, db, uid, password, project_id, stage_name, limit=100, offset=0):
+    """
+    Obtém tarefas de um projeto filtradas pelo nome do estágio.
+    :param project_id: ID do projeto
+    :param stage_name: Nome do estágio para filtrar
+    :param limit: Limite de registros a serem retornados
+    :param offset: Deslocamento para paginação
+    :return: Lista de tarefas ou lista vazia em caso de erro
+    """
+    try:
+        # Primeiro, busca o ID do estágio pelo nome
+        stage_ids = models.execute_kw(
+            db,
+            uid,
+            password,
+            'project.task.type',
+            'search',
+            [[['name', 'ilike', stage_name]]],
+        )
+        
+        if not stage_ids:
+            print(f'Nenhum estágio encontrado com nome {stage_name}')
+            return []
+        
+        # Busca tarefas com o project_id e stage_id correspondentes
+        tasks_info = models.execute_kw(
+            db,
+            uid,
+            password,
+            'project.task',
+            'search_read',
+            [[['project_id', '=', project_id], ['stage_id', 'in', stage_ids]]],
+            {
+                'limit': limit,
+                'offset': offset,
+                'fields': ['id', 'name', 'project_id', 'stage_id', 'sale_order_id', 
+                           'x_studio_tese_2', 'x_studio_segmento', 'partner_id'],
+            },
+        )
+        
+        return tasks_info
+    except Exception as e:
+        print(f'Erro ao buscar tarefas por estágio: {e}')
+        return []
+
+
+def update_task_stage(models, db, uid, password, task_id, stage_id):
+    """
+    Atualiza o estágio de uma tarefa.
+    :param task_id: ID da tarefa a ser atualizada
+    :param stage_id: ID do estágio para o qual a tarefa deve ser movida
+    :return: True se bem-sucedido, None se falhar
+    """
+    try:
+        success = models.execute_kw(
+            db,
+            uid,
+            password,
+            'project.task',
+            'write',
+            [[task_id], {'stage_id': stage_id}],
+        )
+        return success
+    except Exception as e:
+        print(f'Erro ao atualizar estágio da tarefa: {e}')
+        return None
