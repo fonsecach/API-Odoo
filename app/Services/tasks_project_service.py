@@ -233,3 +233,171 @@ def update_task_stage(models, db, uid, password, task_id, stage_id):
     except Exception as e:
         print(f'Erro ao atualizar estágio da tarefa: {e}')
         return None
+    
+
+def transfer_task_messages(models, db, uid, password, source_task_id, target_task_id):
+    """
+    Transfere as mensagens (message_ids) de uma tarefa para outra, preservando as mensagens existentes
+    na tarefa de destino.
+    
+    :param source_task_id: ID da tarefa de origem das mensagens
+    :param target_task_id: ID da tarefa de destino para onde as mensagens serão copiadas
+    :return: True se a operação for bem-sucedida, None em caso de erro
+    """
+    try:
+        # Verificar se ambas as tarefas existem
+        tasks = models.execute_kw(
+            db,
+            uid,
+            password,
+            'project.task',
+            'search_read',
+            [[['id', 'in', [source_task_id, target_task_id]]]],
+            {'fields': ['id', 'name', 'message_ids']}
+        )
+
+        if len(tasks) != 2:
+            print(f'Uma ou ambas as tarefas não foram encontradas: origem={source_task_id}, destino={target_task_id}')
+            return None
+
+        # Identificar qual é a tarefa de origem e qual é a de destino
+        source_task = next((task for task in tasks if task['id'] == source_task_id), None)
+        target_task = next((task for task in tasks if task['id'] == target_task_id), None)
+
+        if not source_task or not target_task:
+            print(f'Não foi possível identificar as tarefas corretamente')
+            return None
+
+        # Obter as mensagens da tarefa de origem
+        source_messages = source_task.get('message_ids', [])
+        
+        if not source_messages:
+            print(f'A tarefa de origem não possui mensagens para transferir')
+            return True  # Retorna True pois não há erro, apenas não há mensagens
+        
+        # Verificar se a tarefa de destino já tem mensagens
+        target_messages = target_task.get('message_ids', [])
+        
+        # Criar cópias das mensagens da tarefa de origem para a tarefa de destino
+        for message_id in source_messages:
+            # Verificar se a mensagem já existe na tarefa de destino
+            if message_id in target_messages:
+                continue
+                
+            # Obter detalhes da mensagem original
+            message_data = models.execute_kw(
+                db,
+                uid,
+                password,
+                'mail.message',
+                'read',
+                [message_id],
+                {'fields': ['body', 'subject', 'message_type', 'subtype_id', 'author_id']}
+            )
+            
+            if not message_data:
+                continue
+                
+            message_data = message_data[0]
+            
+            # Criar uma nova mensagem na tarefa de destino
+            new_message = {
+                'body': message_data['body'],
+                'subject': message_data.get('subject', ''),
+                'message_type': message_data['message_type'],
+                'subtype_id': message_data.get('subtype_id', False) and message_data['subtype_id'][0],
+                'author_id': message_data.get('author_id', False) and message_data['author_id'][0],
+                'model': 'project.task',
+                'res_id': target_task_id,
+            }
+            
+            models.execute_kw(
+                db,
+                uid,
+                password,
+                'mail.message',
+                'create',
+                [new_message]
+            )
+        
+        print(f'Mensagens transferidas com sucesso da tarefa {source_task_id} para a tarefa {target_task_id}')
+        return True
+        
+    except Exception as e:
+        print(f'Erro ao transferir mensagens entre tarefas: {e}')
+        return None
+
+
+# Alternativa: função que utiliza a API interna do Odoo
+# Esta abordagem pode ser mais eficiente, mas depende de como o Odoo está configurado
+def transfer_task_messages_v2(models, db, uid, password, source_task_id, target_task_id):
+    """
+    Transfere as mensagens (message_ids) de uma tarefa para outra usando as funções nativas do Odoo.
+    Esta versão utiliza a API de mensagens do Odoo, que pode ser mais eficiente.
+    
+    :param source_task_id: ID da tarefa de origem das mensagens
+    :param target_task_id: ID da tarefa de destino para onde as mensagens serão copiadas
+    :return: True se a operação for bem-sucedida, None em caso de erro
+    """
+    try:
+        # Verificar se ambas as tarefas existem
+        source_task_exists = models.execute_kw(
+            db, uid, password, 'project.task', 'search_count', [[['id', '=', source_task_id]]]
+        )
+        
+        target_task_exists = models.execute_kw(
+            db, uid, password, 'project.task', 'search_count', [[['id', '=', target_task_id]]]
+        )
+        
+        if not source_task_exists or not target_task_exists:
+            print(f'Uma ou ambas as tarefas não foram encontradas: origem={source_task_id}, destino={target_task_id}')
+            return None
+            
+        # Obter as mensagens da tarefa de origem
+        source_messages = models.execute_kw(
+            db,
+            uid,
+            password,
+            'project.task',
+            'read',
+            [source_task_id],
+            {'fields': ['message_ids']}
+        )[0]['message_ids']
+        
+        if not source_messages:
+            print(f'A tarefa de origem não possui mensagens para transferir')
+            return True
+            
+        # Utilizar método message_post para criar cópias das mensagens
+        for message_id in source_messages:
+            message_data = models.execute_kw(
+                db,
+                uid,
+                password,
+                'mail.message',
+                'read',
+                [message_id],
+                {'fields': ['body', 'subject']}
+            )[0]
+            
+            # Adicionar a mensagem à tarefa de destino
+            models.execute_kw(
+                db,
+                uid,
+                password,
+                'project.task',
+                'message_post',
+                [target_task_id],
+                {
+                    'body': message_data['body'],
+                    'subject': message_data.get('subject', 'Mensagem transferida'),
+                    'message_type': 'comment',
+                }
+            )
+            
+        print(f'Mensagens transferidas com sucesso da tarefa {source_task_id} para a tarefa {target_task_id}')
+        return True
+        
+    except Exception as e:
+        print(f'Erro ao transferir mensagens entre tarefas: {e}')
+        return None

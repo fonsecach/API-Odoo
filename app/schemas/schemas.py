@@ -259,7 +259,17 @@ class TaskStageUpdate(BaseModel):
         ...,
         description="ID do estágio para o qual a tarefa deve ser movida"
     )
-
+    
+class TaskMessageTransfer(BaseModel):
+    """Modelo para transferência de mensagens entre tarefas."""
+    source_task_id: int = Field(
+        ..., 
+        description="ID da tarefa de origem das mensagens"
+    )
+    target_task_id: int = Field(
+        ..., 
+        description="ID da tarefa de destino que receberá as mensagens"
+    )
 
 # ------------ Outros Esquemas ------------
 
