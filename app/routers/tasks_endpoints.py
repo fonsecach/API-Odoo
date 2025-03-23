@@ -4,7 +4,7 @@ from http import HTTPStatus
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
-from app.schemas.schemas import TarefaCreate, TarefaUpdate, TaskSaleOrderUpdate, TaskStageUpdate
+from app.schemas.schemas import TarefaCreate, TarefaUpdate, TaskMessageTransfer, TaskSaleOrderUpdate, TaskStageUpdate
 from app.Services.authentication import authenticate_odoo, connect_to_odoo
 from app.Services.sales_orders import get_sales_order_by_id
 from app.Services.tasks_project_service import (
@@ -14,6 +14,7 @@ from app.Services.tasks_project_service import (
     get_task_by_project_and_id,
     get_tasks_by_stage_name,
     get_tasks_info,
+    transfer_task_messages,
     update_task_fields,
     update_task_sale_order,
     update_task_stage,
@@ -428,4 +429,70 @@ async def update_task_stage_route(
         'old_stage_id': task_info['stage_id'][0] if isinstance(task_info['stage_id'], list) else task_info['stage_id'],
         'new_stage_id': task_stage_update.stage_id,
         'new_stage_name': stage_info[0]['name'],
+    }
+
+
+@router.post(
+    '/tasks/transfer-messages',
+    summary='Transfere mensagens de uma tarefa para outra',
+    response_description='Mensagens transferidas com sucesso',
+)
+async def transfer_task_messages_route(transfer_data: TaskMessageTransfer):
+    """
+    Endpoint para transferir mensagens (message_ids) de uma tarefa para outra.
+    
+    :param transfer_data: Dados contendo os IDs das tarefas de origem e destino
+    :return: Confirmação da transferência
+    """
+    common, models = connect_to_odoo(ODOO_URL)
+    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
+
+    if not uid:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Falha na autenticação no Odoo',
+        )
+
+    # Verificar se a tarefa de origem existe
+    source_task = get_task_by_id(
+        models, ODOO_DB, uid, ODOO_PASSWORD, transfer_data.source_task_id
+    )
+
+    if not source_task:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f'Tarefa de origem com ID {transfer_data.source_task_id} não encontrada',
+        )
+
+    # Verificar se a tarefa de destino existe
+    target_task = get_task_by_id(
+        models, ODOO_DB, uid, ODOO_PASSWORD, transfer_data.target_task_id
+    )
+
+    if not target_task:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f'Tarefa de destino com ID {transfer_data.target_task_id} não encontrada',
+        )
+
+    # Transferir as mensagens
+    success = transfer_task_messages(
+        models, 
+        ODOO_DB, 
+        uid, 
+        ODOO_PASSWORD, 
+        transfer_data.source_task_id, 
+        transfer_data.target_task_id
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail='Falha ao transferir mensagens entre as tarefas',
+        )
+
+    return {
+        'message': 'Mensagens transferidas com sucesso',
+        'source_task_id': transfer_data.source_task_id,
+        'target_task_id': transfer_data.target_task_id,
     }
