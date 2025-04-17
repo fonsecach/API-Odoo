@@ -6,6 +6,7 @@ de desempenho de vendas por equipe, vendedor e produto.
 """
 
 from http import HTTPStatus
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -13,6 +14,10 @@ from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
 from app.schemas.schemas import DateRangeParams, SalesAnalyticsResponse
 from app.services.authentication import authenticate_odoo, connect_to_odoo
 from app.services.sales_analytics_service import get_sales_analytics
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/analytics', tags=['Analytics'])
 
@@ -76,6 +81,8 @@ async def sales_analytics(params_tuple: tuple = Depends(validate_date_params)):
         )
     
     try:
+        logger.info(f"Iniciando análise para o período: {date_params.start_date} até {date_params.end_date}")
+        
         analytics_data = get_sales_analytics(
             models, 
             ODOO_DB, 
@@ -86,10 +93,22 @@ async def sales_analytics(params_tuple: tuple = Depends(validate_date_params)):
             use_sample_data
         )
         
+        # Garantir que o campo 'opportunities' existe na resposta
+        if 'opportunities' not in analytics_data:
+            analytics_data['opportunities'] = []
+            logger.warning("Campo 'opportunities' não encontrado na resposta. Adicionando lista vazia.")
+        
+        logger.info(f"Análise concluída: {len(analytics_data.get('teams', []))} equipes, "
+                   f"{len(analytics_data.get('users', []))} usuários, "
+                   f"{len(analytics_data.get('products', []))} produtos, "
+                   f"{len(analytics_data.get('opportunities', []))} oportunidades")
+        
         return analytics_data
     
     except Exception as e:
+        logger.error(f'Erro ao gerar análise de vendas: {str(e)}', exc_info=True)
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f'Erro ao gerar análise de vendas: {str(e)}'
         )
+        

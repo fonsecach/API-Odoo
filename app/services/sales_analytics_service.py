@@ -8,7 +8,7 @@ de vendas por equipe, por vendedor e por produto, baseados apenas no CRM.
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union
 import logging
-import numpy as np  # Importando NumPy para cálculos mais precisos
+import numpy as np
 
 from app.services.authentication import connect_to_odoo, authenticate_odoo
 
@@ -62,19 +62,19 @@ def get_won_opportunities(
         logger.info(f"Buscando oportunidades ganhas e ativas (estágio 10) no período {start_date} até {end_date}")
         
         # Buscar oportunidades ganhas com todos os campos necessários
+        fields = [
+            'id', 'name', 'team_id', 'user_id', 'expected_revenue',
+            'date_closed', 'partner_id', 'x_studio_tese', 
+            'date_last_stage_update', 'stage_id', 'active',
+            'x_studio_selection_field_37f_1ibrq64l3', 'x_studio_segmento'
+        ]
+        
         opportunities = models.execute_kw(
             db, uid, password,
             'crm.lead',
             'search_read',
             [domain],
-            {
-                'fields': [
-                    'id', 'name', 'team_id', 'user_id', 'expected_revenue',
-                    'date_closed', 'partner_id', 'x_studio_tese', 
-                    'date_last_stage_update', 'stage_id', 'active',
-                    'x_studio_selection_field_37f_1ibrq64l3', 'x_studio_segmento'
-                ]
-            }
+            {'fields': fields}
         )
         
         logger.info(f"Encontradas {len(opportunities)} oportunidades ganhas e ativas no período")
@@ -98,19 +98,19 @@ def get_won_opportunities(
             
             logger.info("Tentando busca alternativa sem filtro de 'active'")
             
+            fields = [
+                'id', 'name', 'team_id', 'user_id', 'expected_revenue',
+                'date_closed', 'partner_id', 'x_studio_tese', 
+                'date_last_stage_update', 'stage_id',
+                'x_studio_selection_field_37f_1ibrq64l3', 'x_studio_segmento'
+            ]
+            
             opportunities = models.execute_kw(
                 db, uid, password,
                 'crm.lead',
                 'search_read',
                 [domain],
-                {
-                    'fields': [
-                        'id', 'name', 'team_id', 'user_id', 'expected_revenue',
-                        'date_closed', 'partner_id', 'x_studio_tese', 
-                        'date_last_stage_update', 'stage_id',
-                        'x_studio_selection_field_37f_1ibrq64l3', 'x_studio_segmento'
-                    ]
-                }
+                {'fields': fields}
             )
             
             logger.info(f"Encontradas {len(opportunities)} oportunidades ganhas no período (sem filtro 'active')")
@@ -131,6 +131,9 @@ def prepare_opportunity_details(opportunities: List[Dict]) -> List[Dict]:
         try:
             # Formatação da data de fechamento (se disponível)
             date_closed = opp.get('date_closed')
+            if not date_closed:
+                date_closed = opp.get('date_last_stage_update')
+                
             if date_closed:
                 # Tentar formatar a data para um formato mais amigável
                 try:
@@ -143,22 +146,57 @@ def prepare_opportunity_details(opportunities: List[Dict]) -> List[Dict]:
             # Formatação da receita esperada para 2 casas decimais
             expected_revenue = format_decimal(float(opp.get('expected_revenue', 0)))
             
+            # Obter valores dos campos, tratando casos onde podem estar vazios
+            # Garantir que todos os campos sejam strings
+            commercial_partner = str(opp.get('x_studio_selection_field_37f_1ibrq64l3', '')) 
+            if commercial_partner == 'False':
+                commercial_partner = ''
+                
+            segment = str(opp.get('x_studio_segmento', ''))
+            if segment == 'False':
+                segment = ''
+            
+            # Garantir que os campos relacionais tenham uma string em vez de um tuple
+            client = ''
+            if opp.get('partner_id'):
+                if isinstance(opp['partner_id'], (list, tuple)) and len(opp['partner_id']) > 1:
+                    client = str(opp['partner_id'][1])
+                else:
+                    client = str(opp['partner_id'])
+                    
+            sales_person = ''
+            if opp.get('user_id'):
+                if isinstance(opp['user_id'], (list, tuple)) and len(opp['user_id']) > 1:
+                    sales_person = str(opp['user_id'][1])
+                else:
+                    sales_person = str(opp['user_id'])
+                    
+            sales_team = ''
+            if opp.get('team_id'):
+                if isinstance(opp['team_id'], (list, tuple)) and len(opp['team_id']) > 1:
+                    sales_team = str(opp['team_id'][1])
+                else:
+                    sales_team = str(opp['team_id'])
+            
             # Preparar o objeto de detalhe da oportunidade
             detail = {
                 'id': opp['id'],
-                'name': opp.get('name', ''),
-                'client': opp.get('partner_id') and opp['partner_id'][1] or '',
+                'name': str(opp.get('name', '')),
+                'client': client,
                 'expected_revenue': expected_revenue,
-                'date_closed': date_closed or '',
-                'sales_person': opp.get('user_id') and opp['user_id'][1] or '',
-                'commercial_partner': opp.get('x_studio_selection_field_37f_1ibrq64l3', ''),
-                'segment': opp.get('x_studio_segmento', ''),
-                'sales_team': opp.get('team_id') and opp['team_id'][1] or ''
+                'date_closed': str(date_closed or ''),
+                'sales_person': sales_person,
+                'commercial_partner': commercial_partner,
+                'segment': segment,
+                'sales_team': sales_team
             }
+            
+            # Logar para debug
+            logger.info(f"Preparado detalhe para oportunidade ID {opp['id']}: {detail}")
             
             opportunity_details.append(detail)
         except Exception as e:
-            logger.error(f"Erro ao processar detalhes da oportunidade ID {opp.get('id', 'desconhecido')}: {e}")
+            logger.error(f"Erro ao processar detalhes da oportunidade ID {opp.get('id', 'desconhecido')}: {e}", exc_info=True)
             # Continuar para a próxima oportunidade se houver erro
             continue
     
@@ -206,15 +244,19 @@ def get_sales_analytics(
             }
         
         # Preparar os detalhes das oportunidades
+        logger.info("Preparando detalhes de oportunidades")
         opportunity_details = prepare_opportunity_details(won_opportunities)
         
         # Processar as métricas
+        logger.info("Processando métricas de análise")
         analytics_data = process_opportunities_analytics(
             models, db, uid, password, won_opportunities, start_date, end_date
         )
         
         # Adicionar os detalhes das oportunidades ao resultado
         analytics_data['opportunities'] = opportunity_details
+        
+        logger.info(f"Análise concluída. Encontradas {len(opportunity_details)} oportunidades.")
         
         return analytics_data
     except Exception as e:

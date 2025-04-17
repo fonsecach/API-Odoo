@@ -97,12 +97,26 @@ class ProductSalesAnalytics(BaseModel):
     total_amount: float
 
 
+class OpportunityDetail(BaseModel):
+    """Modelo para detalhes de oportunidades."""
+    id: int
+    name: str
+    client: str
+    expected_revenue: float
+    date_closed: str
+    sales_person: str
+    commercial_partner: str
+    segment: str
+    sales_team: str
+
+
 class SalesAnalyticsResponse(BaseModel):
     """Modelo para resposta completa de análise de vendas."""
     period: dict
     teams: List[TeamSalesAnalytics]
     users: List[UserSalesAnalytics]
     products: List[ProductSalesAnalytics]
+    opportunities: List[OpportunityDetail] = []
 
 
 # ------------ Esquemas de Empresas/Contatos ------------
