@@ -5,9 +5,9 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
 from app.schemas.schemas import TarefaCreate, TarefaUpdate, TaskMessageTransfer, TaskSaleOrderUpdate, TaskStageUpdate
-from app.Services.authentication import authenticate_odoo, connect_to_odoo
-from app.Services.sales_orders import get_sales_order_by_id
-from app.Services.tasks_project_service import (
+from app.services.authentication import authenticate_odoo, connect_to_odoo
+from app.services.sales_orders import get_sales_order_by_id
+from app.services.tasks_project_service import (
     create_task,
     create_task_attachment,
     get_task_by_id,

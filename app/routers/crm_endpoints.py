@@ -20,9 +20,9 @@ from app.schemas.schemas import (
     OpportunityDefault,
     OpportunityReturn,
 )
-from app.Services.authentication import authenticate_odoo, connect_to_odoo
-from app.Services.company_service import get_or_create_partner
-from app.Services.crm_service import (
+from app.services.authentication import authenticate_odoo, connect_to_odoo
+from app.services.company_service import get_or_create_partner
+from app.services.crm_service import (
     create_opportunity_in_crm,
     fetch_opportunity_by_id,
     get_opportunities_info,

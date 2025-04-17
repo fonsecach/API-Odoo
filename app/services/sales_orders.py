@@ -5,7 +5,7 @@ from typing import Any, Dict
 from fastapi import HTTPException
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
-from app.Services.authentication import authenticate_odoo, connect_to_odoo
+from app.services.authentication import authenticate_odoo, connect_to_odoo
 
 
 def get_sales_orders(models, db, uid, password, limit=100, offset=0):

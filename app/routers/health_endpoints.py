@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from app.schemas.schemas import HealthCheck as HealthCheckSchema
 from app.schemas.schemas import PingResponse
-from app.Services.health_service import HealthCheck
+from app.services.health_service import HealthCheck
 
 router = APIRouter(prefix='/health', tags=['Healthcheck'])
 health_check_service = HealthCheck()

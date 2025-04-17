@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.Services.crm_service import get_opportunities_info
+from app.services.crm_service import get_opportunities_info
 
 
 def test_get_opportunities_info_sucesso(mock_models, mock_execute_kw):

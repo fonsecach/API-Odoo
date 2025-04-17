@@ -4,8 +4,8 @@ from fastapi import APIRouter, HTTPException
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
 from app.schemas.schemas import SaleOrderCreate, SaleOrderUpdate
-from app.Services.authentication import authenticate_odoo, connect_to_odoo
-from app.Services.sales_orders import (
+from app.services.authentication import authenticate_odoo, connect_to_odoo
+from app.services.sales_orders import (
     SalesOrderService,
     get_sales_order_by_id,
     get_sales_orders,

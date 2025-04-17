@@ -8,7 +8,7 @@ de dados de entrada e saída na API de integração com o Odoo.
 from datetime import date, datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # Configuração comum para todos os modelos
@@ -35,6 +35,74 @@ class HealthCheck(BaseModel):
 class PingResponse(BaseModel):
     """Modelo para resposta do endpoint de ping."""
     status: str
+
+# ------------ Esquemas de analytic ------------
+
+class DateRangeParams(BaseModel):
+    """Modelo para validação de parâmetros de período."""
+    start_date: str = Field(
+        ..., 
+        description="Data inicial no formato dd-mm-aaaa"
+    )
+    end_date: str = Field(
+        ..., 
+        description="Data final no formato dd-mm-aaaa"
+    )
+    
+    @field_validator('start_date', 'end_date')
+    @classmethod
+    def validate_date_format(cls, v):
+        try:
+            datetime.strptime(v, '%d-%m-%Y')
+        except ValueError:
+            raise ValueError('Data deve estar no formato dd-mm-aaaa')
+        return v
+    
+    @field_validator('end_date')
+    @classmethod
+    def validate_end_date(cls, v, info):
+        start_date = info.data.get('start_date')
+        if start_date:
+            start = datetime.strptime(start_date, '%d-%m-%Y')
+            end = datetime.strptime(v, '%d-%m-%Y')
+            if end < start:
+                raise ValueError('Data final deve ser maior ou igual à data inicial')
+        return v
+
+
+class TeamSalesAnalytics(BaseModel):
+    """Modelo para análise de vendas por equipe."""
+    id: int
+    name: str
+    total_contracts: int
+    total_amount: float
+    expected_revenue_partial: float
+
+
+class UserSalesAnalytics(BaseModel):
+    """Modelo para análise de vendas por vendedor."""
+    id: int
+    name: str
+    team_id: int
+    team_name: str
+    total_contracts: int
+    total_amount: float
+
+
+class ProductSalesAnalytics(BaseModel):
+    """Modelo para análise de vendas por produto/tese."""
+    id: Optional[int] = None
+    name: str
+    total_sales: int
+    total_amount: float
+
+
+class SalesAnalyticsResponse(BaseModel):
+    """Modelo para resposta completa de análise de vendas."""
+    period: dict
+    teams: List[TeamSalesAnalytics]
+    users: List[UserSalesAnalytics]
+    products: List[ProductSalesAnalytics]
 
 
 # ------------ Esquemas de Empresas/Contatos ------------

@@ -4,8 +4,8 @@ from fastapi import APIRouter, HTTPException
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
 from app.schemas.schemas import PartnerNames
-from app.Services.authentication import authenticate_odoo, connect_to_odoo
-from app.Services.migracao import get_partners_by_names
+from app.services.authentication import authenticate_odoo, connect_to_odoo
+from app.services.migracao import get_partners_by_names
 
 router = APIRouter(prefix='/partners', tags=['Migração'])
 

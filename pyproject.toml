@@ -16,6 +16,7 @@ dependencies = [
     "pytest>=8.3.4",
     "scalar-fastapi>=1.0.3",
     "twisted>=24.10.0",
+    "numpy>=2.2.4",
 ]
 
 [tool.ruff]

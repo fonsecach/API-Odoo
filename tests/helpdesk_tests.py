@@ -7,8 +7,8 @@ from fastapi import HTTPException
 from app.routers.helpdesk_endpoints import (
     list_tickets,
 )
-from app.Services.authentication import authenticate_odoo, connect_to_odoo
-from app.Services.helpdesk_service import (
+from app.services.authentication import authenticate_odoo, connect_to_odoo
+from app.services.helpdesk_service import (
     get_helpdesk_info,
     get_helpdesk_info_by_team_and_id,
     get_helpdesk_info_by_team_id,

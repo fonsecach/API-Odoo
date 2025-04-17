@@ -3,8 +3,8 @@ from http import HTTPStatus
 from fastapi import APIRouter, HTTPException
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
-from app.Services.authentication import authenticate_odoo, connect_to_odoo
-from app.Services.helpdesk_service import (
+from app.services.authentication import authenticate_odoo, connect_to_odoo
+from app.services.helpdesk_service import (
     get_helpdesk_info,
     get_helpdesk_info_by_team_and_id,
     get_helpdesk_info_by_team_id,

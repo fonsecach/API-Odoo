@@ -10,8 +10,8 @@ from app.schemas.schemas import (
     ContactUpdate,
     Message,
 )
-from app.Services.authentication import authenticate_odoo, connect_to_odoo
-from app.Services.company_service import (
+from app.services.authentication import authenticate_odoo, connect_to_odoo
+from app.services.company_service import (
     create_company_in_odoo,
     delete_company_in_odoo,
     fetch_client_by_complete_name,

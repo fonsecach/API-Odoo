@@ -4,8 +4,8 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
-from app.Services.authentication import authenticate_odoo, connect_to_odoo
-from app.Services.fields_inspection_service import (
+from app.services.authentication import authenticate_odoo, connect_to_odoo
+from app.services.fields_inspection_service import (
     get_available_models,
     get_model_fields,
 )
