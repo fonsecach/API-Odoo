@@ -1,14 +1,7 @@
-"""
-Serviço para geração de métricas e análises de vendas.
-
-Este módulo fornece funções para calcular métricas de desempenho
-de vendas por equipe, por vendedor e por produto, baseados apenas no CRM.
-"""
-
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union
 import logging
-import numpy as np
+import numpy as np  # Importando NumPy para cálculos mais precisos
 
 from app.services.authentication import connect_to_odoo, authenticate_odoo
 
@@ -62,19 +55,19 @@ def get_won_opportunities(
         logger.info(f"Buscando oportunidades ganhas e ativas (estágio 10) no período {start_date} até {end_date}")
         
         # Buscar oportunidades ganhas com todos os campos necessários
-        fields = [
-            'id', 'name', 'team_id', 'user_id', 'expected_revenue',
-            'date_closed', 'partner_id', 'x_studio_tese', 
-            'date_last_stage_update', 'stage_id', 'active',
-            'x_studio_selection_field_37f_1ibrq64l3', 'x_studio_segmento'
-        ]
-        
         opportunities = models.execute_kw(
             db, uid, password,
             'crm.lead',
             'search_read',
             [domain],
-            {'fields': fields}
+            {
+                'fields': [
+                    'id', 'name', 'team_id', 'user_id', 'expected_revenue',
+                    'date_closed', 'partner_id', 'x_studio_tese', 
+                    'date_last_stage_update', 'stage_id', 'active',
+                    'x_studio_selection_field_37f_1ibrq64l3', 'x_studio_segmento'
+                ]
+            }
         )
         
         logger.info(f"Encontradas {len(opportunities)} oportunidades ganhas e ativas no período")
@@ -98,19 +91,19 @@ def get_won_opportunities(
             
             logger.info("Tentando busca alternativa sem filtro de 'active'")
             
-            fields = [
-                'id', 'name', 'team_id', 'user_id', 'expected_revenue',
-                'date_closed', 'partner_id', 'x_studio_tese', 
-                'date_last_stage_update', 'stage_id',
-                'x_studio_selection_field_37f_1ibrq64l3', 'x_studio_segmento'
-            ]
-            
             opportunities = models.execute_kw(
                 db, uid, password,
                 'crm.lead',
                 'search_read',
                 [domain],
-                {'fields': fields}
+                {
+                    'fields': [
+                        'id', 'name', 'team_id', 'user_id', 'expected_revenue',
+                        'date_closed', 'partner_id', 'x_studio_tese', 
+                        'date_last_stage_update', 'stage_id',
+                        'x_studio_selection_field_37f_1ibrq64l3', 'x_studio_segmento'
+                    ]
+                }
             )
             
             logger.info(f"Encontradas {len(opportunities)} oportunidades ganhas no período (sem filtro 'active')")
@@ -121,9 +114,19 @@ def get_won_opportunities(
             return []
 
 
-def prepare_opportunity_details(opportunities: List[Dict]) -> List[Dict]:
+def prepare_opportunity_details(opportunities: List[Dict], models, db: str, uid: int, password: str) -> List[Dict]:
     """
     Prepara o objeto detalhado de oportunidades com as informações solicitadas.
+    
+    Args:
+        opportunities: Lista de oportunidades a serem processadas
+        models: Objeto de modelos do Odoo
+        db: Nome do banco de dados
+        uid: ID do usuário autenticado
+        password: Senha do usuário
+        
+    Returns:
+        Lista de objetos detalhados de oportunidades
     """
     opportunity_details = []
     
@@ -131,9 +134,6 @@ def prepare_opportunity_details(opportunities: List[Dict]) -> List[Dict]:
         try:
             # Formatação da data de fechamento (se disponível)
             date_closed = opp.get('date_closed')
-            if not date_closed:
-                date_closed = opp.get('date_last_stage_update')
-                
             if date_closed:
                 # Tentar formatar a data para um formato mais amigável
                 try:
@@ -146,122 +146,58 @@ def prepare_opportunity_details(opportunities: List[Dict]) -> List[Dict]:
             # Formatação da receita esperada para 2 casas decimais
             expected_revenue = format_decimal(float(opp.get('expected_revenue', 0)))
             
-            # Obter valores dos campos, tratando casos onde podem estar vazios
-            # Garantir que todos os campos sejam strings
-            commercial_partner = str(opp.get('x_studio_selection_field_37f_1ibrq64l3', '')) 
-            if commercial_partner == 'False':
-                commercial_partner = ''
+            # Obter o VAT do parceiro se disponível
+            vat = None
+            if opp.get('partner_id') and opp['partner_id'][0]:
+                # Busca o parceiro para obter o VAT
+                try:
+                    partner = models.execute_kw(
+                        db, uid, password,
+                        'res.partner',
+                        'search_read',
+                        [[['id', '=', opp['partner_id'][0]]]],
+                        {'fields': ['vat']}
+                    )
+                    if partner and partner[0].get('vat'):
+                        vat = partner[0]['vat']
+                except Exception as e:
+                    logger.error(f"Erro ao buscar VAT do parceiro ID {opp['partner_id'][0]}: {e}")
+            
+            # Garantir que commercial_partner seja string ou None
+            commercial_partner = opp.get('x_studio_selection_field_37f_1ibrq64l3')
+            if commercial_partner is False:
+                commercial_partner = None
+            elif commercial_partner is not None:
+                commercial_partner = str(commercial_partner)
                 
-            segment = str(opp.get('x_studio_segmento', ''))
-            if segment == 'False':
-                segment = ''
-            
-            # Garantir que os campos relacionais tenham uma string em vez de um tuple
-            client = ''
-            if opp.get('partner_id'):
-                if isinstance(opp['partner_id'], (list, tuple)) and len(opp['partner_id']) > 1:
-                    client = str(opp['partner_id'][1])
-                else:
-                    client = str(opp['partner_id'])
-                    
-            sales_person = ''
-            if opp.get('user_id'):
-                if isinstance(opp['user_id'], (list, tuple)) and len(opp['user_id']) > 1:
-                    sales_person = str(opp['user_id'][1])
-                else:
-                    sales_person = str(opp['user_id'])
-                    
-            sales_team = ''
-            if opp.get('team_id'):
-                if isinstance(opp['team_id'], (list, tuple)) and len(opp['team_id']) > 1:
-                    sales_team = str(opp['team_id'][1])
-                else:
-                    sales_team = str(opp['team_id'])
-            
+            # Garantir que segment seja string ou None
+            segment = opp.get('x_studio_segmento')
+            if segment is False:
+                segment = None
+            elif segment is not None:
+                segment = str(segment)
+                
             # Preparar o objeto de detalhe da oportunidade
             detail = {
                 'id': opp['id'],
-                'name': str(opp.get('name', '')),
-                'client': client,
+                'name': opp.get('name', ''),
+                'client': opp.get('partner_id') and opp['partner_id'][1] or '',
+                'vat': vat,  # Adicionar o VAT ao detalhe da oportunidade
                 'expected_revenue': expected_revenue,
-                'date_closed': str(date_closed or ''),
-                'sales_person': sales_person,
-                'commercial_partner': commercial_partner,
-                'segment': segment,
-                'sales_team': sales_team
+                'date_closed': date_closed or '',
+                'sales_person': opp.get('user_id') and opp['user_id'][1] or '',
+                'commercial_partner': commercial_partner,  # Já convertido para string ou None
+                'segment': segment,  # Já convertido para string ou None
+                'sales_team': opp.get('team_id') and opp['team_id'][1] or ''
             }
-            
-            # Logar para debug
-            logger.info(f"Preparado detalhe para oportunidade ID {opp['id']}: {detail}")
             
             opportunity_details.append(detail)
         except Exception as e:
-            logger.error(f"Erro ao processar detalhes da oportunidade ID {opp.get('id', 'desconhecido')}: {e}", exc_info=True)
+            logger.error(f"Erro ao processar detalhes da oportunidade ID {opp.get('id', 'desconhecido')}: {e}")
             # Continuar para a próxima oportunidade se houver erro
             continue
     
     return opportunity_details
-
-
-def get_sales_analytics(
-    models, db: str, uid: int, password: str, 
-    start_date: str, end_date: str, 
-    use_sample_data: bool = False
-) -> Dict:
-    """
-    Obtém métricas de análise de vendas por equipe, vendedor e produto.
-    Baseado apenas nos dados do CRM, sem buscar pedidos de venda.
-    """
-    try:
-        # Converter datas para o formato do Odoo
-        start_date_odoo = format_date_for_odoo(parse_date(start_date))
-        end_date_odoo = format_date_for_odoo(parse_date(end_date))
-        
-        logger.info(f"Iniciando análise de vendas para o período: {start_date} até {end_date}")
-        
-        # Obter oportunidades ganhas no período
-        won_opportunities = get_won_opportunities(
-            models, db, uid, password,
-            start_date_odoo, end_date_odoo
-        )
-        
-        if not won_opportunities:
-            logger.warning("Nenhuma oportunidade ganha encontrada no período")
-            
-            if use_sample_data:
-                logger.info("Usando dados de exemplo para demonstração")
-                return get_sample_analytics_data(start_date, end_date)
-                
-            return {
-                'period': {
-                    'start_date': start_date,
-                    'end_date': end_date
-                },
-                'teams': [],
-                'users': [],
-                'products': [],
-                'opportunities': []
-            }
-        
-        # Preparar os detalhes das oportunidades
-        logger.info("Preparando detalhes de oportunidades")
-        opportunity_details = prepare_opportunity_details(won_opportunities)
-        
-        # Processar as métricas
-        logger.info("Processando métricas de análise")
-        analytics_data = process_opportunities_analytics(
-            models, db, uid, password, won_opportunities, start_date, end_date
-        )
-        
-        # Adicionar os detalhes das oportunidades ao resultado
-        analytics_data['opportunities'] = opportunity_details
-        
-        logger.info(f"Análise concluída. Encontradas {len(opportunity_details)} oportunidades.")
-        
-        return analytics_data
-    except Exception as e:
-        logger.error(f'Erro ao gerar análise de vendas: {e}')
-        raise
 
 
 def process_opportunities_analytics(
@@ -371,117 +307,56 @@ def process_opportunities_analytics(
     }
 
 
-def get_sample_analytics_data(start_date: str, end_date: str) -> Dict:
+def get_sales_analytics(
+    models, db: str, uid: int, password: str, 
+    start_date: str, end_date: str
+) -> Dict:
     """
-    Gera dados de exemplo para a análise de vendas.
-    Útil para demonstração quando não há dados reais disponíveis.
+    Obtém métricas de análise de vendas por equipe, vendedor e produto.
+    Baseado apenas nos dados do CRM, sem buscar pedidos de venda.
     """
-    return {
-        'period': {
-            'start_date': start_date,
-            'end_date': end_date
-        },
-        'teams': [
-            {
-                'id': 1,
-                'name': 'Equipe Comercial',
-                'total_contracts': 15,
-                'total_amount': 250000.00,
-                'expected_revenue_partial': 20000.00  # 8% de 250000
-            },
-            {
-                'id': 2, 
-                'name': 'Equipe de Consultoria',
-                'total_contracts': 8,
-                'total_amount': 180000.00,
-                'expected_revenue_partial': 14400.00  # 8% de 180000
+    try:
+        # Converter datas para o formato do Odoo
+        start_date_odoo = format_date_for_odoo(parse_date(start_date))
+        end_date_odoo = format_date_for_odoo(parse_date(end_date))
+        
+        logger.info(f"Iniciando análise de vendas para o período: {start_date} até {end_date}")
+        
+        # Obter oportunidades ganhas no período
+        won_opportunities = get_won_opportunities(
+            models, db, uid, password,
+            start_date_odoo, end_date_odoo
+        )
+        
+        if not won_opportunities:
+            logger.warning("Nenhuma oportunidade ganha encontrada no período")
+            
+            return {
+                'period': {
+                    'start_date': start_date,
+                    'end_date': end_date
+                },
+                'teams': [],
+                'users': [],
+                'products': [],
+                'opportunities': []
             }
-        ],
-        'users': [
-            {
-                'id': 5,
-                'name': 'João Silva',
-                'team_id': 1,
-                'team_name': 'Equipe Comercial',
-                'total_contracts': 9,
-                'total_amount': 150000.00
-            },
-            {
-                'id': 8,
-                'name': 'Maria Oliveira',
-                'team_id': 1,
-                'team_name': 'Equipe Comercial',
-                'total_contracts': 6,
-                'total_amount': 100000.00
-            },
-            {
-                'id': 12,
-                'name': 'Pedro Santos',
-                'team_id': 2,
-                'team_name': 'Equipe de Consultoria',
-                'total_contracts': 8,
-                'total_amount': 180000.00
-            }
-        ],
-        'products': [
-            {
-                'id': 101,
-                'name': 'Consultoria Fiscal',
-                'total_sales': 10,
-                'total_amount': 150000.00
-            },
-            {
-                'id': 102,
-                'name': 'Assessoria Tributária',
-                'total_sales': 8,
-                'total_amount': 200000.00
-            },
-            {
-                'id': None,
-                'name': 'Fiscal',
-                'total_sales': 12,
-                'total_amount': 220000.00
-            },
-            {
-                'id': None,
-                'name': 'Contencioso',
-                'total_sales': 6,
-                'total_amount': 180000.00
-            }
-        ],
-        'opportunities': [
-            {
-                'id': 1001,
-                'name': 'Oportunidade Exemplo 1',
-                'client': 'Cliente A',
-                'expected_revenue': 120000.00,
-                'date_closed': '15/03/2025',
-                'sales_person': 'João Silva',
-                'commercial_partner': 'Parceiro ABC',
-                'segment': 'Indústria',
-                'sales_team': 'Equipe Comercial'
-            },
-            {
-                'id': 1002,
-                'name': 'Oportunidade Exemplo 2',
-                'client': 'Cliente B',
-                'expected_revenue': 80000.00,
-                'date_closed': '22/03/2025',
-                'sales_person': 'Maria Oliveira',
-                'commercial_partner': 'Parceiro XYZ',
-                'segment': 'Varejo',
-                'sales_team': 'Equipe Comercial'
-            },
-            {
-                'id': 1003,
-                'name': 'Consultoria Financeira',
-                'client': 'Cliente C',
-                'expected_revenue': 180000.00,
-                'date_closed': '19/03/2025',
-                'sales_person': 'Pedro Santos',
-                'commercial_partner': 'Parceiro DEF',
-                'segment': 'Financeiro',
-                'sales_team': 'Equipe de Consultoria'
-            }
-        ]
-    }
+        
+        # Preparar os detalhes das oportunidades - Agora passando os parâmetros corretos
+        opportunity_details = prepare_opportunity_details(
+            won_opportunities, models, db, uid, password
+        )
+        
+        # Processar as métricas
+        analytics_data = process_opportunities_analytics(
+            models, db, uid, password, won_opportunities, start_date, end_date
+        )
+        
+        # Adicionar os detalhes das oportunidades ao resultado
+        analytics_data['opportunities'] = opportunity_details
+        
+        return analytics_data
+    except Exception as e:
+        logger.error(f'Erro ao gerar análise de vendas: {e}')
+        raise
+    

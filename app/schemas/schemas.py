@@ -1,10 +1,3 @@
-"""
-Esquemas Pydantic para validação de dados da API.
-
-Este módulo contém todos os modelos Pydantic utilizados para validação
-de dados de entrada e saída na API de integração com o Odoo.
-"""
-
 from datetime import date, datetime
 from typing import List, Optional
 
@@ -35,6 +28,7 @@ class HealthCheck(BaseModel):
 class PingResponse(BaseModel):
     """Modelo para resposta do endpoint de ping."""
     status: str
+
 
 # ------------ Esquemas de analytic ------------
 
@@ -98,26 +92,31 @@ class ProductSalesAnalytics(BaseModel):
 
 
 class OpportunityDetail(BaseModel):
-    """Modelo para detalhes de oportunidades."""
+    """Modelo para detalhes de oportunidade nos relatórios de análise."""
     id: int
     name: str
     client: str
+    vat: Optional[str] = None  # Campo VAT (CNPJ/CPF) adicionado
     expected_revenue: float
     date_closed: str
     sales_person: str
-    commercial_partner: str
-    segment: str
+    commercial_partner: Optional[str] = None  # Modificado para aceitar explicitamente None
+    segment: Optional[str] = None  # Modificado para aceitar explicitamente None
     sales_team: str
-
-
+    
+    model_config = {
+        # Adiciona configuração para ignorar valores extras
+        "extra": "ignore"
+    }
+    
 class SalesAnalyticsResponse(BaseModel):
     """Modelo para resposta completa de análise de vendas."""
     period: dict
     teams: List[TeamSalesAnalytics]
     users: List[UserSalesAnalytics]
     products: List[ProductSalesAnalytics]
-    opportunities: List[OpportunityDetail] = []
-
+    opportunities: List[OpportunityDetail] = []  # Lista de oportunidades com detalhes
+    
 
 # ------------ Esquemas de Empresas/Contatos ------------
 
@@ -151,7 +150,7 @@ class OpportunityDefault(BaseModel):
     x_studio_tese: Optional[str] = None
     user_id: int
     team_id: int
-    stage_id: int = 10
+    stage_id: int
 
 
 class OpportunityReturn(OpportunityDefault):
