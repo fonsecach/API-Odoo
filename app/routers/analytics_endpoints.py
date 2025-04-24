@@ -70,19 +70,19 @@ async def sales_analytics(date_params: DateRangeParams = Depends(validate_date_p
             status_code=HTTPStatus.UNAUTHORIZED,
             detail='Falha na autenticação no Odoo'
         )
-    
+
     try:
         analytics_data = get_sales_analytics(
-            models, 
-            ODOO_DB, 
-            uid, 
+            models,
+            ODOO_DB,
+            uid,
             ODOO_PASSWORD,
             date_params.start_date,
             date_params.end_date
         )
-        
+
         return analytics_data
-    
+
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,

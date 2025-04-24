@@ -4,7 +4,13 @@ from http import HTTPStatus
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
-from app.schemas.schemas import TarefaCreate, TarefaUpdate, TaskMessageTransfer, TaskSaleOrderUpdate, TaskStageUpdate
+from app.schemas.schemas import (
+    TarefaCreate,
+    TarefaUpdate,
+    TaskMessageTransfer,
+    TaskSaleOrderUpdate,
+    TaskStageUpdate,
+)
 from app.services.authentication import authenticate_odoo, connect_to_odoo
 from app.services.sales_orders import get_sales_order_by_id
 from app.services.tasks_project_service import (
@@ -312,6 +318,7 @@ async def add_task_attachment_route(
             detail=f"Erro ao anexar arquivo: {str(e)}",
         )
 
+
 @router.get(
     '/{project_id}/tasks/stage/{stage_name}',
     summary='Busca tarefas por nome do estágio dentro de um projeto',
@@ -477,11 +484,11 @@ async def transfer_task_messages_route(transfer_data: TaskMessageTransfer):
 
     # Transferir as mensagens
     success = transfer_task_messages(
-        models, 
-        ODOO_DB, 
-        uid, 
-        ODOO_PASSWORD, 
-        transfer_data.source_task_id, 
+        models,
+        ODOO_DB,
+        uid,
+        ODOO_PASSWORD,
+        transfer_data.source_task_id,
         transfer_data.target_task_id
     )
 

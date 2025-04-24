@@ -186,11 +186,11 @@ def get_tasks_by_stage_name(models, db, uid, password, project_id, stage_name, l
             'search',
             [[['name', 'ilike', stage_name]]],
         )
-        
+
         if not stage_ids:
             print(f'Nenhum estágio encontrado com nome {stage_name}')
             return []
-        
+
         # Busca tarefas com o project_id e stage_id correspondentes
         tasks_info = models.execute_kw(
             db,
@@ -202,11 +202,11 @@ def get_tasks_by_stage_name(models, db, uid, password, project_id, stage_name, l
             {
                 'limit': limit,
                 'offset': offset,
-                'fields': ['id', 'name', 'project_id', 'stage_id', 'sale_order_id', 
+                'fields': ['id', 'name', 'project_id', 'stage_id', 'sale_order_id',
                            'x_studio_tese_2', 'x_studio_segmento', 'partner_id'],
             },
         )
-        
+
         return tasks_info
     except Exception as e:
         print(f'Erro ao buscar tarefas por estágio: {e}')
@@ -233,7 +233,7 @@ def update_task_stage(models, db, uid, password, task_id, stage_id):
     except Exception as e:
         print(f'Erro ao atualizar estágio da tarefa: {e}')
         return None
-    
+
 
 def transfer_task_messages(models, db, uid, password, source_task_id, target_task_id):
     """
@@ -265,25 +265,25 @@ def transfer_task_messages(models, db, uid, password, source_task_id, target_tas
         target_task = next((task for task in tasks if task['id'] == target_task_id), None)
 
         if not source_task or not target_task:
-            print(f'Não foi possível identificar as tarefas corretamente')
+            print('Não foi possível identificar as tarefas corretamente')
             return None
 
         # Obter as mensagens da tarefa de origem
         source_messages = source_task.get('message_ids', [])
-        
+
         if not source_messages:
-            print(f'A tarefa de origem não possui mensagens para transferir')
+            print('A tarefa de origem não possui mensagens para transferir')
             return True  # Retorna True pois não há erro, apenas não há mensagens
-        
+
         # Verificar se a tarefa de destino já tem mensagens
         target_messages = target_task.get('message_ids', [])
-        
+
         # Criar cópias das mensagens da tarefa de origem para a tarefa de destino
         for message_id in source_messages:
             # Verificar se a mensagem já existe na tarefa de destino
             if message_id in target_messages:
                 continue
-                
+
             # Obter detalhes da mensagem original
             message_data = models.execute_kw(
                 db,
@@ -294,12 +294,12 @@ def transfer_task_messages(models, db, uid, password, source_task_id, target_tas
                 [message_id],
                 {'fields': ['body', 'subject', 'message_type', 'subtype_id', 'author_id']}
             )
-            
+
             if not message_data:
                 continue
-                
+
             message_data = message_data[0]
-            
+
             # Criar uma nova mensagem na tarefa de destino
             new_message = {
                 'body': message_data['body'],
@@ -310,7 +310,7 @@ def transfer_task_messages(models, db, uid, password, source_task_id, target_tas
                 'model': 'project.task',
                 'res_id': target_task_id,
             }
-            
+
             models.execute_kw(
                 db,
                 uid,
@@ -319,10 +319,10 @@ def transfer_task_messages(models, db, uid, password, source_task_id, target_tas
                 'create',
                 [new_message]
             )
-        
+
         print(f'Mensagens transferidas com sucesso da tarefa {source_task_id} para a tarefa {target_task_id}')
         return True
-        
+
     except Exception as e:
         print(f'Erro ao transferir mensagens entre tarefas: {e}')
         return None
@@ -344,15 +344,15 @@ def transfer_task_messages_v2(models, db, uid, password, source_task_id, target_
         source_task_exists = models.execute_kw(
             db, uid, password, 'project.task', 'search_count', [[['id', '=', source_task_id]]]
         )
-        
+
         target_task_exists = models.execute_kw(
             db, uid, password, 'project.task', 'search_count', [[['id', '=', target_task_id]]]
         )
-        
+
         if not source_task_exists or not target_task_exists:
             print(f'Uma ou ambas as tarefas não foram encontradas: origem={source_task_id}, destino={target_task_id}')
             return None
-            
+
         # Obter as mensagens da tarefa de origem
         source_messages = models.execute_kw(
             db,
@@ -363,11 +363,11 @@ def transfer_task_messages_v2(models, db, uid, password, source_task_id, target_
             [source_task_id],
             {'fields': ['message_ids']}
         )[0]['message_ids']
-        
+
         if not source_messages:
-            print(f'A tarefa de origem não possui mensagens para transferir')
+            print('A tarefa de origem não possui mensagens para transferir')
             return True
-            
+
         # Utilizar método message_post para criar cópias das mensagens
         for message_id in source_messages:
             message_data = models.execute_kw(
@@ -379,7 +379,7 @@ def transfer_task_messages_v2(models, db, uid, password, source_task_id, target_
                 [message_id],
                 {'fields': ['body', 'subject']}
             )[0]
-            
+
             # Adicionar a mensagem à tarefa de destino
             models.execute_kw(
                 db,
@@ -394,10 +394,10 @@ def transfer_task_messages_v2(models, db, uid, password, source_task_id, target_
                     'message_type': 'comment',
                 }
             )
-            
+
         print(f'Mensagens transferidas com sucesso da tarefa {source_task_id} para a tarefa {target_task_id}')
         return True
-        
+
     except Exception as e:
         print(f'Erro ao transferir mensagens entre tarefas: {e}')
         return None

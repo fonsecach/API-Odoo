@@ -35,14 +35,14 @@ class PingResponse(BaseModel):
 class DateRangeParams(BaseModel):
     """Modelo para validação de parâmetros de período."""
     start_date: str = Field(
-        ..., 
+        ...,
         description="Data inicial no formato dd-mm-aaaa"
     )
     end_date: str = Field(
-        ..., 
+        ...,
         description="Data final no formato dd-mm-aaaa"
     )
-    
+
     @field_validator('start_date', 'end_date')
     @classmethod
     def validate_date_format(cls, v):
@@ -51,7 +51,7 @@ class DateRangeParams(BaseModel):
         except ValueError:
             raise ValueError('Data deve estar no formato dd-mm-aaaa')
         return v
-    
+
     @field_validator('end_date')
     @classmethod
     def validate_end_date(cls, v, info):
@@ -103,12 +103,13 @@ class OpportunityDetail(BaseModel):
     commercial_partner: Optional[str] = None  # Modificado para aceitar explicitamente None
     segment: Optional[str] = None  # Modificado para aceitar explicitamente None
     sales_team: str
-    
+
     model_config = {
         # Adiciona configuração para ignorar valores extras
         "extra": "ignore"
     }
-    
+
+
 class SalesAnalyticsResponse(BaseModel):
     """Modelo para resposta completa de análise de vendas."""
     period: dict
@@ -116,7 +117,7 @@ class SalesAnalyticsResponse(BaseModel):
     users: List[UserSalesAnalytics]
     products: List[ProductSalesAnalytics]
     opportunities: List[OpportunityDetail] = []  # Lista de oportunidades com detalhes
-    
+
 
 # ------------ Esquemas de Empresas/Contatos ------------
 
@@ -332,28 +333,48 @@ class TaskSaleOrderUpdate(BaseModel):
     """Modelo para vincular tarefa a pedido de venda."""
     task_id: int
     sale_order_id: int
-    
+
 
 class TaskStageUpdate(BaseModel):
-    #Modelo para atualização de estágio de tarefa.
+    # Modelo para atualização de estágio de tarefa.
     stage_id: int = Field(
         ...,
         description="ID do estágio para o qual a tarefa deve ser movida"
     )
-    
+
+
 class TaskMessageTransfer(BaseModel):
     """Modelo para transferência de mensagens entre tarefas."""
     source_task_id: int = Field(
-        ..., 
+        ...,
         description="ID da tarefa de origem das mensagens"
     )
     target_task_id: int = Field(
-        ..., 
+        ...,
         description="ID da tarefa de destino que receberá as mensagens"
     )
 
 # ------------ Outros Esquemas ------------
 
+
 class PartnerNames(BaseModel):
     """Modelo para busca de parceiros por nomes."""
     names: List[str]
+
+
+class SelectionFieldValue(BaseModel):
+    """Modelo para um único valor de campo de seleção com valor e nome."""
+    value: str
+    name: str
+
+
+class SelectionFieldUpdate(BaseModel):
+    """Modelo para atualização de campo de seleção com múltiplos valores."""
+    model_name: str = Field(
+        ...,
+        description="Nome do modelo ao qual o campo pertence")
+    field_name: str = Field(
+        ...,
+        description="Nome do campo de seleção a ser atualizado")
+    values: List[SelectionFieldValue] = Field(...,
+        description="Lista de valores de seleção")
