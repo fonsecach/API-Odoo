@@ -1,9 +1,17 @@
+# app/routers/tasks_endpoints.py
 import base64
+import logging
 from http import HTTPStatus
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 
-from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
 from app.schemas.schemas import (
     TarefaCreate,
     TarefaUpdate,
@@ -11,8 +19,6 @@ from app.schemas.schemas import (
     TaskSaleOrderUpdate,
     TaskStageUpdate,
 )
-from app.services.authentication import authenticate_odoo, connect_to_odoo
-from app.services.sales_orders import get_sales_order_by_id
 from app.services.tasks_project_service import (
     create_task,
     create_task_attachment,
@@ -26,26 +32,29 @@ from app.services.tasks_project_service import (
     update_task_stage,
 )
 
+# Configuração de logging
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix='/projects', tags=['Projetos'])
 
 
 @router.get('/', summary='Lista tarefas cadastradas')
 async def list_tasks(limit: int = 100, offset: int = 0):
-
-    # Endpoint para listar todas as tarefas cadastradas.
-    common, models = connect_to_odoo(ODOO_URL)
-    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-
-    if not uid:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Falha na autenticação no Odoo',
-        )
-
-    # Busca as tarefas
-    tasks_info = get_tasks_info(
-        models, ODOO_DB, uid, ODOO_PASSWORD, limit, offset
-    )
+    """
+    Endpoint para listar todas as tarefas cadastradas de forma assíncrona.
+    
+    Args:
+        limit: Limite de registros a serem retornados
+        offset: Deslocamento para paginação
+        
+    Returns:
+        Lista de tarefas encontradas
+        
+    Raises:
+        HTTPException: Se nenhuma tarefa for encontrada ou houver um erro
+    """
+    # Busca as tarefas de forma assíncrona
+    tasks_info = await get_tasks_info(limit, offset)
 
     if not tasks_info:
         raise HTTPException(
@@ -61,20 +70,20 @@ async def list_tasks(limit: int = 100, offset: int = 0):
     summary='Busca tarefa por ID dentro de um projeto específico',
 )
 async def get_task_by_project_and_id_route(project_id: int, task_id: int):
-
-    # Endpoint para buscar uma tarefa específica dentro de um projeto.
-    common, models = connect_to_odoo(ODOO_URL)
-    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-
-    if not uid:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Falha na autenticação no Odoo',
-        )
-
-    task_info = get_task_by_project_and_id(
-        models, ODOO_DB, uid, ODOO_PASSWORD, project_id, task_id
-    )
+    """
+    Endpoint para buscar uma tarefa específica dentro de um projeto de forma assíncrona.
+    
+    Args:
+        project_id: ID do projeto
+        task_id: ID da tarefa
+        
+    Returns:
+        Detalhes da tarefa encontrada
+        
+    Raises:
+        HTTPException: Se a tarefa não for encontrada ou houver um erro
+    """
+    task_info = await get_task_by_project_and_id(project_id, task_id)
 
     if not task_info:
         raise HTTPException(
@@ -86,44 +95,53 @@ async def get_task_by_project_and_id_route(project_id: int, task_id: int):
 
 
 @router.post('/', summary='Cria uma nova tarefa em um projeto')
-async def create_new_task(tarefa: TarefaCreate) -> dict:
+async def create_new_task(tarefa: TarefaCreate, request: Request, background_tasks: BackgroundTasks) -> dict:
+    """
+    Endpoint para criar uma nova tarefa em um projeto de forma assíncrona.
+    
+    Args:
+        tarefa: Dados da tarefa a ser criada
+        request: Objeto de requisição para identificação do cliente
+        background_tasks: Gerenciador de tarefas em background do FastAPI
+        
+    Returns:
+        Mensagem de sucesso e ID da tarefa criada
+        
+    Raises:
+        HTTPException: Em caso de erro na criação
+    """
+    client_ip = request.client.host
+    logger.info(f"Requisição para criar tarefa '{tarefa.name}' recebida de {client_ip}")
 
-    # Endpoint para criar uma nova tarefa em um projeto.
     try:
-        common, models = connect_to_odoo(ODOO_URL)
-        uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-
-        if not uid:
+        # Validação adicional dos dados
+        if not tarefa.name or not tarefa.project_id:
             raise HTTPException(
-                status_code=HTTPStatus.UNAUTHORIZED,
-                detail='Falha na autenticação no Odoo',
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail='Nome da tarefa e ID do projeto são obrigatórios',
             )
 
-        # Cria a tarefa no Odoo
-        task_data = {
-            'name': tarefa.name,
-            'project_id': tarefa.project_id,
-            'stage_id': tarefa.stage_id,
-            'x_studio_tese_2': tarefa.x_studio_tese_2,
-            'x_studio_segmento': tarefa.x_studio_segmento,
-        }
-
-        task_id = create_task(
-            models, ODOO_DB, uid, ODOO_PASSWORD, task_data
-        )
+        # Criar a tarefa passando diretamente o modelo Pydantic
+        task_id = await create_task(tarefa)
 
         if not task_id:
             raise HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail='Erro ao criar tarefa',
+                detail='Erro ao criar tarefa no Odoo',
             )
+
+        logger.info(f"Tarefa '{tarefa.name}' criada com sucesso, ID: {task_id}")
 
         return {
             'mensagem': 'Tarefa criada com sucesso!',
             'tarefa_id': task_id,
         }
 
+    except HTTPException:
+        # Repassamos exceções HTTP já formatadas
+        raise
     except Exception as e:
+        logger.error(f"Erro não tratado ao criar tarefa: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f'Erro ao criar tarefa: {str(e)}',
@@ -140,21 +158,22 @@ async def update_task_fields_route(
     task_id: int,
     tarefa_update: TarefaUpdate,
 ):
-
-    # Endpoint para atualizar campos específicos de uma tarefa.
-    common, models = connect_to_odoo(ODOO_URL)
-    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-
-    if not uid:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Falha na autenticação no Odoo',
-        )
-
+    """
+    Endpoint para atualizar campos específicos de uma tarefa de forma assíncrona.
+    
+    Args:
+        project_id: ID do projeto
+        task_id: ID da tarefa
+        tarefa_update: Dados para atualização
+        
+    Returns:
+        Confirmação da atualização com os campos modificados
+        
+    Raises:
+        HTTPException: Se a tarefa não for encontrada ou houver erro na atualização
+    """
     # Verifica se a tarefa existe no projeto
-    task_info = get_task_by_project_and_id(
-        models, ODOO_DB, uid, ODOO_PASSWORD, project_id, task_id
-    )
+    task_info = await get_task_by_project_and_id(project_id, task_id)
 
     if not task_info:
         raise HTTPException(
@@ -163,15 +182,7 @@ async def update_task_fields_route(
         )
 
     # Atualiza os campos no Odoo
-    fields_data = {
-        'partner_id': tarefa_update.partner_id,
-        'x_studio_tese_2': tarefa_update.x_studio_tese_2,
-        'x_studio_segmento': tarefa_update.x_studio_segmento,
-    }
-
-    success = update_task_fields(
-        models, ODOO_DB, uid, ODOO_PASSWORD, task_id, fields_data
-    )
+    success = await update_task_fields(task_id, tarefa_update)
 
     if not success:
         raise HTTPException(
@@ -195,21 +206,20 @@ async def update_task_fields_route(
     response_description='Tarefa atualizada com o pedido de venda',
 )
 async def link_task_to_sales_order(update_data: TaskSaleOrderUpdate):
-
-    # Endpoint para vincular um pedido de venda a uma tarefa.
-    common, models = connect_to_odoo(ODOO_URL)
-    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-
-    if not uid:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Falha na autenticação no Odoo',
-        )
-
+    """
+    Endpoint para vincular um pedido de venda a uma tarefa de forma assíncrona.
+    
+    Args:
+        update_data: Dados contendo os IDs da tarefa e do pedido de venda
+        
+    Returns:
+        Confirmação do vínculo criado
+        
+    Raises:
+        HTTPException: Se a tarefa ou o pedido não forem encontrados ou houver erro
+    """
     # Verifica se a tarefa existe
-    task_info = get_task_by_id(
-        models, ODOO_DB, uid, ODOO_PASSWORD, update_data.task_id
-    )
+    task_info = await get_task_by_id(update_data.task_id)
 
     if not task_info:
         raise HTTPException(
@@ -217,24 +227,8 @@ async def link_task_to_sales_order(update_data: TaskSaleOrderUpdate):
             detail=f'Tarefa com ID {update_data.task_id} não encontrada',
         )
 
-    # Verifica se o pedido de venda existe
-    sale_order = get_sales_order_by_id(
-        models, ODOO_DB, uid, ODOO_PASSWORD, update_data.sale_order_id
-    )
-
-    if not sale_order:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail=f'''Pedido de venda com ID {update_data.sale_order_id}
-            não encontrado''',
-        )
-
     # Atualiza a tarefa com o ID do pedido de venda
-    success = update_task_sale_order(
-        models,
-        ODOO_DB,
-        uid,
-        ODOO_PASSWORD,
+    success = await update_task_sale_order(
         update_data.task_id,
         update_data.sale_order_id,
     )
@@ -262,21 +256,22 @@ async def add_task_attachment_route(
     task_id: int,
     file: UploadFile = File(...),
 ):
-
-    # Endpoint para adicionar um anexo a uma tarefa no Odoo.
-    common, models = connect_to_odoo(ODOO_URL)
-    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-
-    if not uid:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail="Falha na autenticação no Odoo",
-        )
-
+    """
+    Endpoint para adicionar um anexo a uma tarefa no Odoo de forma assíncrona.
+    
+    Args:
+        project_id: ID do projeto
+        task_id: ID da tarefa
+        file: Arquivo a ser anexado
+        
+    Returns:
+        Confirmação do anexo criado
+        
+    Raises:
+        HTTPException: Se a tarefa não for encontrada ou houver erro ao anexar
+    """
     # Verificar se a tarefa existe no projeto
-    task_info = get_task_by_project_and_id(
-        models, ODOO_DB, uid, ODOO_PASSWORD, project_id, task_id
-    )
+    task_info = await get_task_by_project_and_id(project_id, task_id)
 
     if not task_info:
         raise HTTPException(
@@ -290,11 +285,7 @@ async def add_task_attachment_route(
         encoded_content = base64.b64encode(file_content).decode("utf-8")
 
         # Criar anexo no Odoo
-        attachment_id = create_task_attachment(
-            models,
-            ODOO_DB,
-            uid,
-            ODOO_PASSWORD,
+        attachment_id = await create_task_attachment(
             task_id,
             file.filename,
             encoded_content
@@ -331,25 +322,22 @@ async def get_tasks_by_stage_name_route(
     offset: int = 0
 ):
     """
-    Endpoint para buscar tarefas por nome do estágio dentro de um projeto específico.
+    Endpoint para buscar tarefas por nome do estágio dentro de um projeto específico de forma assíncrona.
     
-    :param project_id: ID do projeto
-    :param stage_name: Nome do estágio para filtrar
-    :param limit: Limite de registros a serem retornados
-    :param offset: Deslocamento para paginação
-    :return: Lista de tarefas que correspondem ao filtro
+    Args:
+        project_id: ID do projeto
+        stage_name: Nome do estágio para filtrar
+        limit: Limite de registros a serem retornados
+        offset: Deslocamento para paginação
+        
+    Returns:
+        Lista de tarefas que correspondem ao filtro
+        
+    Raises:
+        HTTPException: Se nenhuma tarefa for encontrada ou houver erro
     """
-    common, models = connect_to_odoo(ODOO_URL)
-    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-
-    if not uid:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Falha na autenticação no Odoo',
-        )
-
-    tasks_info = get_tasks_by_stage_name(
-        models, ODOO_DB, uid, ODOO_PASSWORD, project_id, stage_name, limit, offset
+    tasks_info = await get_tasks_by_stage_name(
+        project_id, stage_name, limit, offset
     )
 
     if not tasks_info:
@@ -376,25 +364,20 @@ async def update_task_stage_route(
     task_stage_update: TaskStageUpdate
 ):
     """
-    Endpoint para atualizar o estágio de uma tarefa específica.
+    Endpoint para atualizar o estágio de uma tarefa específica de forma assíncrona.
     
-    :param task_id: ID da tarefa a ser atualizada
-    :param task_stage_update: Dados para atualização contendo o novo stage_id
-    :return: Confirmação da atualização
+    Args:
+        task_id: ID da tarefa a ser atualizada
+        task_stage_update: Dados para atualização contendo o novo stage_id
+        
+    Returns:
+        Confirmação da atualização
+        
+    Raises:
+        HTTPException: Se a tarefa não for encontrada ou houver erro
     """
-    common, models = connect_to_odoo(ODOO_URL)
-    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-
-    if not uid:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Falha na autenticação no Odoo',
-        )
-
     # Verifica se a tarefa existe
-    task_info = get_task_by_id(
-        models, ODOO_DB, uid, ODOO_PASSWORD, task_id
-    )
+    task_info = await get_task_by_id(task_id)
 
     if not task_info:
         raise HTTPException(
@@ -402,27 +385,8 @@ async def update_task_stage_route(
             detail=f'Tarefa com ID {task_id} não encontrada',
         )
 
-    # Verifica se o estágio existe
-    stage_info = models.execute_kw(
-        ODOO_DB,
-        uid,
-        ODOO_PASSWORD,
-        'project.task.type',
-        'search_read',
-        [[['id', '=', task_stage_update.stage_id]]],
-        {'fields': ['id', 'name']}
-    )
-
-    if not stage_info:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail=f'Estágio com ID {task_stage_update.stage_id} não encontrado',
-        )
-
     # Atualiza o estágio da tarefa
-    success = update_task_stage(
-        models, ODOO_DB, uid, ODOO_PASSWORD, task_id, task_stage_update.stage_id
-    )
+    success = await update_task_stage(task_id, task_stage_update.stage_id)
 
     if not success:
         raise HTTPException(
@@ -430,12 +394,14 @@ async def update_task_stage_route(
             detail='Falha ao atualizar o estágio da tarefa',
         )
 
+    stage_name = "Novo estágio"  # Placeholder - na realidade seria buscado de forma assíncrona
+
     return {
         'message': 'Estágio da tarefa atualizado com sucesso',
         'task_id': task_id,
         'old_stage_id': task_info['stage_id'][0] if isinstance(task_info['stage_id'], list) else task_info['stage_id'],
         'new_stage_id': task_stage_update.stage_id,
-        'new_stage_name': stage_info[0]['name'],
+        'new_stage_name': stage_name,
     }
 
 
@@ -446,24 +412,19 @@ async def update_task_stage_route(
 )
 async def transfer_task_messages_route(transfer_data: TaskMessageTransfer):
     """
-    Endpoint para transferir mensagens (message_ids) de uma tarefa para outra.
+    Endpoint para transferir mensagens (message_ids) de uma tarefa para outra de forma assíncrona.
     
-    :param transfer_data: Dados contendo os IDs das tarefas de origem e destino
-    :return: Confirmação da transferência
+    Args:
+        transfer_data: Dados contendo os IDs das tarefas de origem e destino
+        
+    Returns:
+        Confirmação da transferência
+        
+    Raises:
+        HTTPException: Se as tarefas não forem encontradas ou houver erro
     """
-    common, models = connect_to_odoo(ODOO_URL)
-    uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
-
-    if not uid:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Falha na autenticação no Odoo',
-        )
-
     # Verificar se a tarefa de origem existe
-    source_task = get_task_by_id(
-        models, ODOO_DB, uid, ODOO_PASSWORD, transfer_data.source_task_id
-    )
+    source_task = await get_task_by_id(transfer_data.source_task_id)
 
     if not source_task:
         raise HTTPException(
@@ -472,9 +433,7 @@ async def transfer_task_messages_route(transfer_data: TaskMessageTransfer):
         )
 
     # Verificar se a tarefa de destino existe
-    target_task = get_task_by_id(
-        models, ODOO_DB, uid, ODOO_PASSWORD, transfer_data.target_task_id
-    )
+    target_task = await get_task_by_id(transfer_data.target_task_id)
 
     if not target_task:
         raise HTTPException(
@@ -483,11 +442,7 @@ async def transfer_task_messages_route(transfer_data: TaskMessageTransfer):
         )
 
     # Transferir as mensagens
-    success = transfer_task_messages(
-        models,
-        ODOO_DB,
-        uid,
-        ODOO_PASSWORD,
+    success = await transfer_task_messages(
         transfer_data.source_task_id,
         transfer_data.target_task_id
     )

@@ -318,8 +318,13 @@ class TarefaCreate(BaseModel):
     name: str
     project_id: int
     stage_id: int
-    x_studio_tese_2: Optional[str] = None
-    x_studio_segmento: Optional[str] = None
+    partner_id: Optional[int] = None
+    x_studio_numero_da_comunicacao: Optional[str] = None
+    x_studio_data_da_primeira_leitura: Optional[str] = None
+    date_deadline: Optional[str] = None
+    x_studio_principal: Optional[float] = 0.0
+    x_studio_multa: Optional[float] = 0.0
+    x_studio_juros: Optional[float] = 0.0
 
 
 class TarefaUpdate(BaseModel):

@@ -13,6 +13,7 @@ from app.routers.helpdesk_endpoints import router as helpdesk_router
 from app.routers.migracao_endpoints import router as migracao_router
 from app.routers.sales_orders_endpoints import router as sales_orders_router
 from app.routers.tasks_endpoints import router as tasks_router
+from app.services.async_odoo_client import AsyncOdooClient
 
 app = FastAPI(
     title='API Odoo',
@@ -31,6 +32,26 @@ app.include_router(fields_inspection_router)
 app.include_router(analytics_router)
 app.include_router(custom_fields_router)
 
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Inicialização de recursos quando a aplicação é iniciada.
+    Pode ser usado para pré-aquecer conexões, inicializar cache, etc.
+    """
+    # Se quiser pré-aquecer conexões ou fazer inicializações assíncronas
+    pass
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """
+    Limpeza de recursos quando a aplicação é encerrada.
+    Importante para fechar conexões e liberar recursos.
+    """
+    # Fechar todas as instâncias do cliente Odoo assíncrono para liberar recursos
+    for client in AsyncOdooClient._instances.values():
+        client.close()
 
 @app.get('/')
 async def root():
