@@ -236,8 +236,6 @@ async def create_task_attachment(task_id: int, file_name: str, file_content: str
         logger.error(f'Erro ao anexar arquivo à tarefa: {e}')
         return None
 
-# app/services/tasks_project_service.py
-# Adicione esta função ao seu arquivo
 
 async def get_tasks_by_stage_name(project_id: int, stage_name: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
     """

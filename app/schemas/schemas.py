@@ -319,12 +319,18 @@ class TarefaCreate(BaseModel):
     project_id: int
     stage_id: int
     partner_id: Optional[int] = None
+    description: Optional[str] = None
     x_studio_numero_da_comunicacao: Optional[str] = None
     x_studio_data_da_primeira_leitura: Optional[str] = None
     date_deadline: Optional[str] = None
     x_studio_principal: Optional[float] = 0.0
     x_studio_multa: Optional[float] = 0.0
     x_studio_juros: Optional[float] = 0.0
+    x_studio_credito_em_analise: Optional[float] = 0.0
+    x_studio_credito_reconhecido: Optional[float] = 0.0
+    x_studio_periodo_de_apuracao: Optional[str] = None
+    x_studio_tipo_de_credito: Optional[str] = None
+    x_studio_numero_do_perdcomp: Optional[str] = None
 
 
 class TarefaUpdate(BaseModel):
