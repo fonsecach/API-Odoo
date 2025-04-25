@@ -1,4 +1,7 @@
+from contextlib import asynccontextmanager
+import os
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
 
 from app.routers.analytics_endpoints import router as analytics_router
@@ -15,10 +18,33 @@ from app.routers.sales_orders_endpoints import router as sales_orders_router
 from app.routers.tasks_endpoints import router as tasks_router
 from app.services.async_odoo_client import AsyncOdooClient
 
+is_production = os.getenv('ENVIRONMENT', 'development').lower() == 'production'
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: inicialização de recursos
+    # Aqui você pode colocar lógica para pré-aquecer conexões, cache, etc.
+    yield
+    # Shutdown: liberar recursos
+    for client in AsyncOdooClient._instances.values():
+        client.close()
+
 app = FastAPI(
     title='API Odoo',
     description='API para integração com o ERP do Odoo',
     version='0.1.0',
+    docs_url=None if is_production else '/docs',
+    openapi_url=None if is_production else '/openapi.json',
+)
+
+# Configure CORS middleware
+origins = os.getenv('CORS_ORIGINS', '*').split(',')
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(company_router)
@@ -32,26 +58,6 @@ app.include_router(fields_inspection_router)
 app.include_router(analytics_router)
 app.include_router(custom_fields_router)
 
-
-@app.on_event("startup")
-async def startup_event():
-    """
-    Inicialização de recursos quando a aplicação é iniciada.
-    Pode ser usado para pré-aquecer conexões, inicializar cache, etc.
-    """
-    # Se quiser pré-aquecer conexões ou fazer inicializações assíncronas
-    pass
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """
-    Limpeza de recursos quando a aplicação é encerrada.
-    Importante para fechar conexões e liberar recursos.
-    """
-    # Fechar todas as instâncias do cliente Odoo assíncrono para liberar recursos
-    for client in AsyncOdooClient._instances.values():
-        client.close()
 
 @app.get('/')
 async def root():
