@@ -1,5 +1,6 @@
-from contextlib import asynccontextmanager
 import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
@@ -20,6 +21,7 @@ from app.services.async_odoo_client import AsyncOdooClient
 
 is_production = os.getenv('ENVIRONMENT', 'development').lower() == 'production'
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: inicialização de recursos
@@ -28,6 +30,7 @@ async def lifespan(app: FastAPI):
     # Shutdown: liberar recursos
     for client in AsyncOdooClient._instances.values():
         client.close()
+
 
 app = FastAPI(
     title='API Odoo',

@@ -251,7 +251,7 @@ async def get_tasks_by_stage_name(project_id: int, stage_name: str, limit: int =
         Lista de tarefas ou lista vazia em caso de erro
     """
     client = await get_odoo_client()
-    
+
     try:
         # Primeiro, busca o ID do estágio pelo nome
         stage_ids = await client.search_read(
@@ -259,14 +259,14 @@ async def get_tasks_by_stage_name(project_id: int, stage_name: str, limit: int =
             [['name', 'ilike', stage_name]],
             fields=['id']
         )
-        
+
         if not stage_ids:
             logger.warning(f'Nenhum estágio encontrado com nome {stage_name}')
             return []
-        
+
         # Extrai os IDs dos estágios encontrados
         stage_ids_list = [stage['id'] for stage in stage_ids]
-        
+
         # Busca tarefas com o project_id e stage_id correspondentes
         tasks_info = await client.search_read(
             TASK_MODEL,
@@ -276,11 +276,12 @@ async def get_tasks_by_stage_name(project_id: int, stage_name: str, limit: int =
             limit=limit,
             offset=offset
         )
-        
+
         return tasks_info
     except Exception as e:
         logger.error(f'Erro ao buscar tarefas por estágio: {e}')
         return []
+
 
 async def transfer_task_messages(source_task_id: int, target_task_id: int) -> bool:
     """
@@ -294,7 +295,7 @@ async def transfer_task_messages(source_task_id: int, target_task_id: int) -> bo
         True se a operação for bem-sucedida, False em caso de erro
     """
     client = await get_odoo_client()
-    
+
     try:
         # Obter as mensagens da tarefa de origem
         source_task = await client.search_read(
@@ -302,44 +303,44 @@ async def transfer_task_messages(source_task_id: int, target_task_id: int) -> bo
             [['id', '=', source_task_id]],
             fields=['message_ids']
         )
-        
+
         if not source_task or not source_task[0].get('message_ids'):
             logger.warning(f'A tarefa de origem {source_task_id} não possui mensagens para transferir')
             return True  # Retorna True pois não há erro, apenas não há mensagens
-        
+
         source_messages = source_task[0]['message_ids']
-        
+
         # Obter as mensagens da tarefa de destino para evitar duplicação
         target_task = await client.search_read(
             TASK_MODEL,
             [['id', '=', target_task_id]],
             fields=['message_ids']
         )
-        
+
         if not target_task:
             logger.error(f'Tarefa de destino {target_task_id} não encontrada')
             return False
-            
+
         target_messages = target_task[0].get('message_ids', [])
-        
+
         # Para cada mensagem na tarefa de origem
         for message_id in source_messages:
             # Pular se a mensagem já existir na tarefa de destino
             if message_id in target_messages:
                 continue
-                
+
             # Obter detalhes da mensagem original
             message_data = await client.search_read(
                 'mail.message',
                 [['id', '=', message_id]],
                 fields=['body', 'subject', 'message_type', 'subtype_id', 'author_id']
             )
-            
+
             if not message_data:
                 continue
-                
+
             message_data = message_data[0]
-            
+
             # Criar nova mensagem na tarefa de destino
             new_message = {
                 'body': message_data.get('body', ''),
@@ -350,15 +351,16 @@ async def transfer_task_messages(source_task_id: int, target_task_id: int) -> bo
                 'model': TASK_MODEL,
                 'res_id': target_task_id,
             }
-            
+
             await client.create('mail.message', new_message)
-        
+
         logger.info(f'Mensagens transferidas com sucesso da tarefa {source_task_id} para {target_task_id}')
         return True
-        
+
     except Exception as e:
         logger.error(f'Erro ao transferir mensagens entre tarefas: {e}')
         return False
+
 
 async def update_task_stage(task_id: int, stage_id: int) -> bool:
     """
@@ -372,7 +374,7 @@ async def update_task_stage(task_id: int, stage_id: int) -> bool:
         True se bem-sucedido, False se falhar
     """
     client = await get_odoo_client()
-    
+
     try:
         return await client.write(TASK_MODEL, task_id, {'stage_id': stage_id})
     except Exception as e:
