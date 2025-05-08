@@ -365,6 +365,40 @@ class TaskMessageTransfer(BaseModel):
         description="ID da tarefa de destino que receberá as mensagens"
     )
 
+# ---------- helpdesk ----------------
+
+
+# Atualize este modelo no arquivo schemas.py
+
+from typing import Optional
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+class HelpdeskTicketUpdate(BaseModel):
+    """Modelo para atualização de estágio e/ou equipe de um chamado de helpdesk."""
+    ticket_id: int = Field(
+        ...,
+        description="ID do chamado a ser atualizado"
+    )
+    team_id: int = Field(
+        ...,
+        description="ID da equipe atual do chamado (para validação)"
+    )
+    new_stage_id: Optional[int] = Field(
+        None,
+        description="ID do novo estágio para o chamado (opcional)"
+    )
+    new_team_id: Optional[int] = Field(
+        None,
+        description="ID da nova equipe para o chamado (opcional)"
+    )
+    
+    @model_validator(mode='after')
+    def validate_at_least_one_field(self):
+        """Verifica se pelo menos um dos campos de atualização foi fornecido."""
+        if self.new_stage_id is None and self.new_team_id is None:
+            raise ValueError('Pelo menos um dos campos new_stage_id ou new_team_id deve ser fornecido')
+        return self
+
 # ------------ Outros Esquemas ------------
 
 
