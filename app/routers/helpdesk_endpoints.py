@@ -1,16 +1,20 @@
 import logging
 from http import HTTPStatus
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from app.schemas.schemas import HelpdeskTicketUpdate
+from app.schemas.schemas import (
+    HelpdeskTicketsByVatResponse,
+    HelpdeskTicketUpdate,
+)
 from app.services.helpdesk_service import (
     create_ticket,
     get_helpdesk_info,
     get_helpdesk_info_by_team_and_id,
     get_helpdesk_info_by_team_and_stage,
     get_helpdesk_info_by_team_id,
+    get_helpdesk_tickets_by_vat_and_team,
     update_ticket_team_and_stage,
 )
 
@@ -311,3 +315,62 @@ async def create_helpdesk_ticket(
         'name': ticket_data.name,
         'team_id': ticket_data.team_id,
     }
+
+
+@router.get(
+    '/client-vat/{vat}/team/1',
+    summary='Lista chamados de um cliente (por CNPJ/VAT) na equipe de Helpdesk 1',
+    response_model=HelpdeskTicketsByVatResponse,  # Use the new response schema
+    tags=['Central de Ajuda'],  # Keep existing tag or adjust as needed
+)
+async def list_tickets_by_vat_for_team_1(
+    vat: str,
+    limit: int = Query(
+        100, description='Limite de registros a serem retornados'
+    ),
+    offset: int = Query(0, description='Deslocamento para paginação'),
+):
+    """
+    Endpoint para listar chamados de helpdesk para um cliente específico (identificado por VAT/CNPJ)
+    dentro da equipe de Helpdesk com ID 1.
+
+    Args:
+        vat: CNPJ do cliente.
+        limit: Limite de registros a serem retornados.
+        offset: Deslocamento para paginação.
+
+    Returns:
+        Lista de chamados do cliente na equipe 1.
+
+    Raises:
+        HTTPException: Se o VAT for inválido, nenhum chamado for encontrado, ou ocorrer um erro interno.
+    """
+    team_id_fixed = 1  # As per requirement, team_id is 1
+    try:
+        tickets = await get_helpdesk_tickets_by_vat_and_team(
+            vat=vat, team_id=team_id_fixed, limit=limit, offset=offset
+        )
+
+        if (
+            not tickets
+        ):  # tickets will be an empty list if none are found by the service
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f'Nenhum chamado encontrado para o VAT {vat} na equipe {team_id_fixed}',
+            )
+        return {'chamados': tickets}
+    except ValueError as e:  # Catch VAT validation errors specifically
+        logger.error(f"Erro de valor ao buscar chamados por VAT '{vat}': {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+    except (
+        HTTPException
+    ):  # Re-raise HTTPExceptions that might come from deeper calls if any
+        raise
+    except Exception as e:
+        logger.error(
+            f"Erro inesperado ao listar chamados por VAT '{vat}' na equipe {team_id_fixed}: {str(e)}"
+        )
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f'Erro interno ao processar a solicitação de chamados por VAT: {str(e)}',
+        )

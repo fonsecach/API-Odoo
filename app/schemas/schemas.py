@@ -1,7 +1,14 @@
 from datetime import date, datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 # Configuração comum para todos os modelos
@@ -383,11 +390,6 @@ class TasksByVatResponse(BaseModel):
 # ---------- helpdesk ----------------
 
 
-from typing import Optional
-
-from pydantic import BaseModel, Field, field_validator, model_validator
-
-
 class HelpdeskTicketUpdate(BaseModel):
     """Modelo para atualização de estágio e/ou equipe de um chamado de helpdesk."""
 
@@ -410,6 +412,24 @@ class HelpdeskTicketUpdate(BaseModel):
                 'Pelo menos um dos campos new_stage_id ou new_team_id deve ser fornecido'
             )
         return self
+
+
+class HelpdeskTicketByVat(BaseModel):
+    """Modelo para chamado de helpdesk retornado pela busca por VAT."""
+
+    id: int
+    name: Optional[str] = None
+    client_name: Optional[str] = None
+    stage_name: Optional[str] = None
+    write_date: Optional[datetime] = None
+    date_last_stage_update: Optional[datetime] = None
+    model_config = ConfigDict(extra='ignore')
+
+
+class HelpdeskTicketsByVatResponse(BaseModel):
+    """Modelo de resposta para lista de chamados de helpdesk por VAT."""
+
+    chamados: List[HelpdeskTicketByVat]
 
 
 # ------------ Outros Esquemas ------------
