@@ -18,47 +18,48 @@ router = APIRouter(prefix='/analytics', tags=['Analytics'])
 
 
 def validate_date_params(
-    start_date: str = Query(..., description="Data inicial no formato dd-mm-aaaa"),
-    end_date: str = Query(..., description="Data final no formato dd-mm-aaaa")
+    start_date: str = Query(
+        ..., description='Data inicial no formato dd-mm-aaaa'
+    ),
+    end_date: str = Query(..., description='Data final no formato dd-mm-aaaa'),
 ) -> DateRangeParams:
     """
     Valida os parâmetros de data usando o modelo Pydantic.
-    
+
     Args:
         start_date: Data inicial no formato dd-mm-aaaa
         end_date: Data final no formato dd-mm-aaaa
-        
+
     Returns:
         Objeto DateRangeParams validado
-    
+
     Raises:
         HTTPException: Se as datas forem inválidas
     """
     try:
         return DateRangeParams(start_date=start_date, end_date=end_date)
     except ValueError as e:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
 
 
 @router.get(
     '/sales',
     summary='Relatório de análise de vendas ganhas',
     description='Obtém métricas de vendas ganhas por equipe, vendedor e produto em um período específico',
-    response_model=SalesAnalyticsResponse
+    response_model=SalesAnalyticsResponse,
 )
-async def sales_analytics(date_params: DateRangeParams = Depends(validate_date_params)):
+async def sales_analytics(
+    date_params: DateRangeParams = Depends(validate_date_params),
+):
     """
     Endpoint para obter análise de vendas no período especificado.
-    
+
     Args:
         date_params: Parâmetros de data validados
-        
+
     Returns:
         Dicionário com métricas de vendas
-        
+
     Raises:
         HTTPException: Em caso de falha na autenticação ou erro interno
     """
@@ -68,7 +69,7 @@ async def sales_analytics(date_params: DateRangeParams = Depends(validate_date_p
     if not uid:
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Falha na autenticação no Odoo'
+            detail='Falha na autenticação no Odoo',
         )
 
     try:
@@ -78,7 +79,7 @@ async def sales_analytics(date_params: DateRangeParams = Depends(validate_date_p
             uid,
             ODOO_PASSWORD,
             date_params.start_date,
-            date_params.end_date
+            date_params.end_date,
         )
 
         return analytics_data
@@ -86,5 +87,5 @@ async def sales_analytics(date_params: DateRangeParams = Depends(validate_date_p
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f'Erro ao gerar análise de vendas: {str(e)}'
+            detail=f'Erro ao gerar análise de vendas: {str(e)}',
         )

@@ -15,7 +15,9 @@ from app.services.helpdesk_service import (
 )
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/tickets', tags=['Central de Ajuda'])
@@ -25,14 +27,14 @@ router = APIRouter(prefix='/tickets', tags=['Central de Ajuda'])
 async def list_tickets(limit: int = 100, offset: int = 0):
     """
     Endpoint para listar todos os chamados de helpdesk de forma assíncrona.
-    
+
     Args:
         limit: Limite de registros a serem retornados
         offset: Deslocamento para paginação
-        
+
     Returns:
         Lista de chamados encontrados
-        
+
     Raises:
         HTTPException: Se nenhum chamado for encontrado ou houver um erro
     """
@@ -53,15 +55,15 @@ async def list_tickets_by_team_id(
 ):
     """
     Endpoint para listar chamados filtrados por time de forma assíncrona.
-    
+
     Args:
         team_id: ID do time
         limit: Limite de registros a serem retornados
         offset: Deslocamento para paginação
-        
+
     Returns:
         Lista de chamados do time
-        
+
     Raises:
         HTTPException: Se nenhum chamado for encontrado ou houver um erro
     """
@@ -83,14 +85,14 @@ async def list_tickets_by_team_id(
 async def get_ticket_by_team_and_id(team_id: int, ticket_id: int):
     """
     Endpoint para buscar um chamado específico dentro de um time de forma assíncrona.
-    
+
     Args:
         team_id: ID do time
         ticket_id: ID do chamado
-        
+
     Returns:
         Detalhes do chamado encontrado
-        
+
     Raises:
         HTTPException: Se o chamado não for encontrado ou houver um erro
     """
@@ -114,16 +116,16 @@ async def list_tickets_by_team_and_stage_id(
 ):
     """
     Endpoint para listar chamados de um time filtrados por estágio de forma assíncrona.
-    
+
     Args:
         team_id: ID do time
         stage_id: ID do estágio
         limit: Limite de registros a serem retornados
         offset: Deslocamento para paginação
-        
+
     Returns:
         Lista de chamados do time no estágio especificado
-        
+
     Raises:
         HTTPException: Se nenhum chamado for encontrado ou houver um erro
     """
@@ -143,62 +145,90 @@ async def list_tickets_by_team_and_stage_id(
 @router.patch(
     '/update',
     summary='Atualiza o estágio e/ou a equipe de um chamado',
-    response_description='Chamado atualizado com sucesso'
+    response_description='Chamado atualizado com sucesso',
 )
 async def update_ticket_route(update_data: HelpdeskTicketUpdate):
     """
     Endpoint para atualizar o estágio e/ou a equipe de um chamado de helpdesk de forma assíncrona.
-    
+
     Args:
         update_data: Dados contendo ticket_id, team_id atual, e opcionalmente new_stage_id e/ou new_team_id
-        
+
     Returns:
         Confirmação da atualização
-        
+
     Raises:
         HTTPException: Se o chamado não for encontrado ou houver um erro
     """
-    logger.info(f"Recebida requisição para atualizar chamado {update_data.ticket_id}")
+    logger.info(
+        f'Recebida requisição para atualizar chamado {update_data.ticket_id}'
+    )
 
     # Verificar se o chamado existe na equipe informada
-    ticket = await get_helpdesk_info_by_team_and_id(update_data.team_id, update_data.ticket_id)
+    ticket = await get_helpdesk_info_by_team_and_id(
+        update_data.team_id, update_data.ticket_id
+    )
 
     if not ticket:
-        logger.warning(f"Chamado {update_data.ticket_id} não encontrado na equipe {update_data.team_id}")
+        logger.warning(
+            f'Chamado {update_data.ticket_id} não encontrado na equipe {update_data.team_id}'
+        )
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail=f'Chamado {update_data.ticket_id} não encontrado na equipe {update_data.team_id}'
+            detail=f'Chamado {update_data.ticket_id} não encontrado na equipe {update_data.team_id}',
         )
 
     # Obter os valores atuais para o log
-    current_stage_id = ticket[0]['stage_id'][0] if isinstance(ticket[0]['stage_id'], list) else ticket[0]['stage_id']
-    current_stage_name = ticket[0]['stage_id'][1] if isinstance(ticket[0]['stage_id'], list) else "Unknown"
-    current_team_id = ticket[0]['team_id'][0] if isinstance(ticket[0]['team_id'], list) else ticket[0]['team_id']
-    current_team_name = ticket[0]['team_id'][1] if isinstance(ticket[0]['team_id'], list) else "Unknown"
+    current_stage_id = (
+        ticket[0]['stage_id'][0]
+        if isinstance(ticket[0]['stage_id'], list)
+        else ticket[0]['stage_id']
+    )
+    current_stage_name = (
+        ticket[0]['stage_id'][1]
+        if isinstance(ticket[0]['stage_id'], list)
+        else 'Unknown'
+    )
+    current_team_id = (
+        ticket[0]['team_id'][0]
+        if isinstance(ticket[0]['team_id'], list)
+        else ticket[0]['team_id']
+    )
+    current_team_name = (
+        ticket[0]['team_id'][1]
+        if isinstance(ticket[0]['team_id'], list)
+        else 'Unknown'
+    )
 
     # Atualizar o chamado
     success = await update_ticket_team_and_stage(
         update_data.ticket_id,
         update_data.team_id,
         update_data.new_stage_id,
-        update_data.new_team_id
+        update_data.new_team_id,
     )
 
     if not success:
-        logger.error(f"Falha ao atualizar chamado {update_data.ticket_id}")
+        logger.error(f'Falha ao atualizar chamado {update_data.ticket_id}')
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail='Falha ao atualizar o chamado'
+            detail='Falha ao atualizar o chamado',
         )
 
     # Preparar mensagem de resposta
     changes = []
     if update_data.new_stage_id:
-        changes.append(f"estágio de {current_stage_id} para {update_data.new_stage_id}")
+        changes.append(
+            f'estágio de {current_stage_id} para {update_data.new_stage_id}'
+        )
     if update_data.new_team_id:
-        changes.append(f"equipe de {current_team_id} para {update_data.new_team_id}")
+        changes.append(
+            f'equipe de {current_team_id} para {update_data.new_team_id}'
+        )
 
-    logger.info(f"Chamado {update_data.ticket_id} atualizado: {', '.join(changes)}")
+    logger.info(
+        f'Chamado {update_data.ticket_id} atualizado: {", ".join(changes)}'
+    )
 
     # Preparar detalhes da resposta
     response = {
@@ -210,25 +240,15 @@ async def update_ticket_route(update_data: HelpdeskTicketUpdate):
     if update_data.new_stage_id:
         response['changes'].append({
             'field': 'stage_id',
-            'old_value': {
-                'id': current_stage_id,
-                'name': current_stage_name
-            },
-            'new_value': {
-                'id': update_data.new_stage_id
-            }
+            'old_value': {'id': current_stage_id, 'name': current_stage_name},
+            'new_value': {'id': update_data.new_stage_id},
         })
 
     if update_data.new_team_id:
         response['changes'].append({
             'field': 'team_id',
-            'old_value': {
-                'id': current_team_id,
-                'name': current_team_name
-            },
-            'new_value': {
-                'id': update_data.new_team_id
-            }
+            'old_value': {'id': current_team_id, 'name': current_team_name},
+            'new_value': {'id': update_data.new_team_id},
         })
 
     return response
@@ -236,35 +256,40 @@ async def update_ticket_route(update_data: HelpdeskTicketUpdate):
 
 class HelpdeskTicketCreate(BaseModel):
     """Modelo para criação de chamados de helpdesk."""
+
     name: str
     team_id: int
-    description: str = ""
+    description: str = ''
     partner_id: int = None
     user_id: int = None
-    priority: str = "0"
+    priority: str = '0'
 
 
 @router.post(
     '/',
     summary='Cria um novo chamado de helpdesk',
-    status_code=HTTPStatus.CREATED
+    status_code=HTTPStatus.CREATED,
 )
-async def create_helpdesk_ticket(ticket_data: HelpdeskTicketCreate, request: Request):
+async def create_helpdesk_ticket(
+    ticket_data: HelpdeskTicketCreate, request: Request
+):
     """
     Endpoint para criar um novo chamado de helpdesk de forma assíncrona.
-    
+
     Args:
         ticket_data: Dados do chamado a ser criado
         request: Objeto de requisição para identificação do cliente
-        
+
     Returns:
         Confirmação da criação com ID do chamado
-        
+
     Raises:
         HTTPException: Se houver um erro na criação
     """
     client_ip = request.client.host
-    logger.info(f"Requisição para criar chamado '{ticket_data.name}' recebida de {client_ip}")
+    logger.info(
+        f"Requisição para criar chamado '{ticket_data.name}' recebida de {client_ip}"
+    )
 
     # Criar o chamado
     ticket_id = await create_ticket(ticket_data.dict())
@@ -273,14 +298,16 @@ async def create_helpdesk_ticket(ticket_data: HelpdeskTicketCreate, request: Req
         logger.error(f"Falha ao criar chamado '{ticket_data.name}'")
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail='Falha ao criar o chamado'
+            detail='Falha ao criar o chamado',
         )
 
-    logger.info(f"Chamado '{ticket_data.name}' criado com sucesso, ID: {ticket_id}")
+    logger.info(
+        f"Chamado '{ticket_data.name}' criado com sucesso, ID: {ticket_id}"
+    )
 
     return {
         'message': 'Chamado criado com sucesso',
         'ticket_id': ticket_id,
         'name': ticket_data.name,
-        'team_id': ticket_data.team_id
+        'team_id': ticket_data.team_id,
     }

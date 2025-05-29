@@ -4,8 +4,6 @@ def clean_vat(vat: str) -> str:
     len_vat = 14
 
     if len(cleaned_vat) != len_vat:
-        raise ValueError(
-            'CNPJ inválido. Deve conter exatamente 14 dígitos.'
-        )
+        raise ValueError('CNPJ inválido. Deve conter exatamente 14 dígitos.')
 
     return cleaned_vat

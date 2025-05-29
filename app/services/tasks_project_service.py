@@ -28,16 +28,17 @@ async def get_odoo_client() -> AsyncOdooClient:
     )
 
 
-async def get_tasks_info(limit: int = 100, offset: int = 0,
-                        fields: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+async def get_tasks_info(
+    limit: int = 100, offset: int = 0, fields: Optional[List[str]] = None
+) -> List[Dict[str, Any]]:
     """
     Obtém informações de várias tarefas de forma assíncrona.
-    
+
     Args:
         limit: Limite de registros a serem retornados
         offset: Deslocamento para paginação
         fields: Campos específicos a serem retornados (usa padrão se None)
-        
+
     Returns:
         Lista de tarefas ou lista vazia em caso de erro
     """
@@ -48,25 +49,23 @@ async def get_tasks_info(limit: int = 100, offset: int = 0,
 
     try:
         return await client.search_read(
-            TASK_MODEL,
-            [],
-            fields=fields,
-            limit=limit,
-            offset=offset
+            TASK_MODEL, [], fields=fields, limit=limit, offset=offset
         )
     except Exception as e:
         logger.error(f'Erro ao buscar e ler informações das tarefas: {e}')
         return []
 
 
-async def get_task_by_id(task_id: int, fields: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+async def get_task_by_id(
+    task_id: int, fields: Optional[List[str]] = None
+) -> Optional[Dict[str, Any]]:
     """
     Obtém uma tarefa pelo seu ID de forma assíncrona.
-    
+
     Args:
         task_id: ID da tarefa
         fields: Campos específicos a serem retornados (usa padrão se None)
-        
+
     Returns:
         Dados da tarefa ou None se não encontrada
     """
@@ -77,9 +76,7 @@ async def get_task_by_id(task_id: int, fields: Optional[List[str]] = None) -> Op
 
     try:
         tasks = await client.search_read(
-            TASK_MODEL,
-            [['id', '=', task_id]],
-            fields=fields
+            TASK_MODEL, [['id', '=', task_id]], fields=fields
         )
         return tasks[0] if tasks else None
     except Exception as e:
@@ -87,16 +84,17 @@ async def get_task_by_id(task_id: int, fields: Optional[List[str]] = None) -> Op
         return None
 
 
-async def get_task_by_project_and_id(project_id: int, task_id: int,
-                                   fields: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+async def get_task_by_project_and_id(
+    project_id: int, task_id: int, fields: Optional[List[str]] = None
+) -> Optional[Dict[str, Any]]:
     """
     Obtém uma tarefa específica de um projeto de forma assíncrona.
-    
+
     Args:
         project_id: ID do projeto
         task_id: ID da tarefa
         fields: Campos específicos a serem retornados (usa padrão se None)
-        
+
     Returns:
         Dados da tarefa ou None se não encontrada
     """
@@ -109,7 +107,7 @@ async def get_task_by_project_and_id(project_id: int, task_id: int,
         tasks = await client.search_read(
             TASK_MODEL,
             [['id', '=', task_id], ['project_id', '=', project_id]],
-            fields=fields
+            fields=fields,
         )
         return tasks[0] if tasks else None
     except Exception as e:
@@ -117,13 +115,15 @@ async def get_task_by_project_and_id(project_id: int, task_id: int,
         return None
 
 
-async def create_task(tarefa: Union[TarefaCreate, Dict[str, Any]]) -> Optional[int]:
+async def create_task(
+    tarefa: Union[TarefaCreate, Dict[str, Any]],
+) -> Optional[int]:
     """
     Cria uma nova tarefa no Odoo de forma assíncrona.
-    
+
     Args:
         tarefa: Dados da tarefa a ser criada (instância de TarefaCreate ou dict)
-        
+
     Returns:
         ID da tarefa criada ou None em caso de erro
     """
@@ -142,14 +142,16 @@ async def create_task(tarefa: Union[TarefaCreate, Dict[str, Any]]) -> Optional[i
         return None
 
 
-async def update_task_fields(task_id: int, fields_data: Union[TarefaUpdate, Dict[str, Any]]) -> bool:
+async def update_task_fields(
+    task_id: int, fields_data: Union[TarefaUpdate, Dict[str, Any]]
+) -> bool:
     """
     Atualiza campos específicos de uma tarefa de forma assíncrona.
-    
+
     Args:
         task_id: ID da tarefa a ser atualizada
         fields_data: Dados a serem atualizados (instância de TarefaUpdate ou dict)
-        
+
     Returns:
         True se bem-sucedido, False se falhar
     """
@@ -171,31 +173,38 @@ async def update_task_fields(task_id: int, fields_data: Union[TarefaUpdate, Dict
 async def update_task_sale_order(task_id: int, sale_order_id: int) -> bool:
     """
     Atualiza uma tarefa com o ID de um pedido de venda de forma assíncrona.
-    
+
     Args:
         task_id: ID da tarefa a ser atualizada
         sale_order_id: ID do pedido de venda a ser vinculado
-        
+
     Returns:
         True se bem-sucedido, False se falhar
     """
     client = await get_odoo_client()
 
     try:
-        return await client.write(TASK_MODEL, task_id, {'sale_order_id': sale_order_id})
+        return await client.write(
+            TASK_MODEL, task_id, {'sale_order_id': sale_order_id}
+        )
     except Exception as e:
-        logger.error(f'Erro ao atualizar tarefa com ID do pedido de venda: {e}')
+        logger.error(
+            f'Erro ao atualizar tarefa com ID do pedido de venda: {e}'
+        )
         return False
 
 
-async def update_task_from_model(task_id: int, update_model: Union[TaskSaleOrderUpdate, TaskStageUpdate, TarefaUpdate]) -> bool:
+async def update_task_from_model(
+    task_id: int,
+    update_model: Union[TaskSaleOrderUpdate, TaskStageUpdate, TarefaUpdate],
+) -> bool:
     """
     Atualiza uma tarefa com base em um modelo de atualização.
-    
+
     Args:
         task_id: ID da tarefa a ser atualizada
         update_model: Modelo Pydantic com os dados de atualização
-        
+
     Returns:
         True se bem-sucedido, False se falhar
     """
@@ -209,15 +218,17 @@ async def update_task_from_model(task_id: int, update_model: Union[TaskSaleOrder
         return False
 
 
-async def create_task_attachment(task_id: int, file_name: str, file_content: str) -> Optional[int]:
+async def create_task_attachment(
+    task_id: int, file_name: str, file_content: str
+) -> Optional[int]:
     """
     Adiciona um anexo a uma tarefa de forma assíncrona.
-    
+
     Args:
         task_id: ID da tarefa
         file_name: Nome do arquivo
         file_content: Conteúdo do arquivo codificado em base64
-        
+
     Returns:
         ID do anexo criado ou None em caso de erro
     """
@@ -225,28 +236,30 @@ async def create_task_attachment(task_id: int, file_name: str, file_content: str
 
     try:
         attachment_data = {
-            "name": file_name,
-            "datas": file_content,
-            "res_model": TASK_MODEL,
-            "res_id": task_id,
+            'name': file_name,
+            'datas': file_content,
+            'res_model': TASK_MODEL,
+            'res_id': task_id,
         }
 
-        return await client.create("ir.attachment", attachment_data)
+        return await client.create('ir.attachment', attachment_data)
     except Exception as e:
         logger.error(f'Erro ao anexar arquivo à tarefa: {e}')
         return None
 
 
-async def get_tasks_by_stage_name(project_id: int, stage_name: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+async def get_tasks_by_stage_name(
+    project_id: int, stage_name: str, limit: int = 100, offset: int = 0
+) -> List[Dict[str, Any]]:
     """
     Obtém tarefas de um projeto filtradas pelo nome do estágio de forma assíncrona.
-    
+
     Args:
         project_id: ID do projeto
         stage_name: Nome do estágio para filtrar
         limit: Limite de registros a serem retornados
         offset: Deslocamento para paginação
-        
+
     Returns:
         Lista de tarefas ou lista vazia em caso de erro
     """
@@ -255,9 +268,7 @@ async def get_tasks_by_stage_name(project_id: int, stage_name: str, limit: int =
     try:
         # Primeiro, busca o ID do estágio pelo nome
         stage_ids = await client.search_read(
-            'project.task.type',
-            [['name', 'ilike', stage_name]],
-            fields=['id']
+            'project.task.type', [['name', 'ilike', stage_name]], fields=['id']
         )
 
         if not stage_ids:
@@ -270,11 +281,22 @@ async def get_tasks_by_stage_name(project_id: int, stage_name: str, limit: int =
         # Busca tarefas com o project_id e stage_id correspondentes
         tasks_info = await client.search_read(
             TASK_MODEL,
-            [['project_id', '=', project_id], ['stage_id', 'in', stage_ids_list]],
-            fields=['id', 'name', 'project_id', 'stage_id', 'sale_order_id',
-                   'x_studio_tese_2', 'x_studio_segmento', 'partner_id'],
+            [
+                ['project_id', '=', project_id],
+                ['stage_id', 'in', stage_ids_list],
+            ],
+            fields=[
+                'id',
+                'name',
+                'project_id',
+                'stage_id',
+                'sale_order_id',
+                'x_studio_tese_2',
+                'x_studio_segmento',
+                'partner_id',
+            ],
             limit=limit,
-            offset=offset
+            offset=offset,
         )
 
         return tasks_info
@@ -283,14 +305,16 @@ async def get_tasks_by_stage_name(project_id: int, stage_name: str, limit: int =
         return []
 
 
-async def transfer_task_messages(source_task_id: int, target_task_id: int) -> bool:
+async def transfer_task_messages(
+    source_task_id: int, target_task_id: int
+) -> bool:
     """
     Transfere as mensagens (message_ids) de uma tarefa para outra de forma assíncrona.
-    
+
     Args:
         source_task_id: ID da tarefa de origem das mensagens
         target_task_id: ID da tarefa de destino para onde as mensagens serão copiadas
-        
+
     Returns:
         True se a operação for bem-sucedida, False em caso de erro
     """
@@ -299,22 +323,22 @@ async def transfer_task_messages(source_task_id: int, target_task_id: int) -> bo
     try:
         # Obter as mensagens da tarefa de origem
         source_task = await client.search_read(
-            TASK_MODEL,
-            [['id', '=', source_task_id]],
-            fields=['message_ids']
+            TASK_MODEL, [['id', '=', source_task_id]], fields=['message_ids']
         )
 
         if not source_task or not source_task[0].get('message_ids'):
-            logger.warning(f'A tarefa de origem {source_task_id} não possui mensagens para transferir')
-            return True  # Retorna True pois não há erro, apenas não há mensagens
+            logger.warning(
+                f'A tarefa de origem {source_task_id} não possui mensagens para transferir'
+            )
+            return (
+                True  # Retorna True pois não há erro, apenas não há mensagens
+            )
 
         source_messages = source_task[0]['message_ids']
 
         # Obter as mensagens da tarefa de destino para evitar duplicação
         target_task = await client.search_read(
-            TASK_MODEL,
-            [['id', '=', target_task_id]],
-            fields=['message_ids']
+            TASK_MODEL, [['id', '=', target_task_id]], fields=['message_ids']
         )
 
         if not target_task:
@@ -333,7 +357,13 @@ async def transfer_task_messages(source_task_id: int, target_task_id: int) -> bo
             message_data = await client.search_read(
                 'mail.message',
                 [['id', '=', message_id]],
-                fields=['body', 'subject', 'message_type', 'subtype_id', 'author_id']
+                fields=[
+                    'body',
+                    'subject',
+                    'message_type',
+                    'subtype_id',
+                    'author_id',
+                ],
             )
 
             if not message_data:
@@ -346,15 +376,19 @@ async def transfer_task_messages(source_task_id: int, target_task_id: int) -> bo
                 'body': message_data.get('body', ''),
                 'subject': message_data.get('subject', ''),
                 'message_type': message_data.get('message_type', 'comment'),
-                'subtype_id': message_data.get('subtype_id') and message_data['subtype_id'][0],
-                'author_id': message_data.get('author_id') and message_data['author_id'][0],
+                'subtype_id': message_data.get('subtype_id')
+                and message_data['subtype_id'][0],
+                'author_id': message_data.get('author_id')
+                and message_data['author_id'][0],
                 'model': TASK_MODEL,
                 'res_id': target_task_id,
             }
 
             await client.create('mail.message', new_message)
 
-        logger.info(f'Mensagens transferidas com sucesso da tarefa {source_task_id} para {target_task_id}')
+        logger.info(
+            f'Mensagens transferidas com sucesso da tarefa {source_task_id} para {target_task_id}'
+        )
         return True
 
     except Exception as e:
@@ -365,11 +399,11 @@ async def transfer_task_messages(source_task_id: int, target_task_id: int) -> bo
 async def update_task_stage(task_id: int, stage_id: int) -> bool:
     """
     Atualiza o estágio de uma tarefa de forma assíncrona.
-    
+
     Args:
         task_id: ID da tarefa a ser atualizada
         stage_id: ID do estágio para o qual a tarefa deve ser movida
-        
+
     Returns:
         True se bem-sucedido, False se falhar
     """
@@ -383,58 +417,62 @@ async def update_task_stage(task_id: int, stage_id: int) -> bool:
 
 
 async def get_tasks_by_client_vat_in_projects(
-    vat: str, 
-    project_ids: List[int],
-    fields: Optional[List[str]] = None
+    vat: str, project_ids: List[int], fields: Optional[List[str]] = None
 ) -> List[Dict[str, Any]]:
     """
     Busca tarefas em projetos específicos filtrando pelo CNPJ do cliente.
-    
+
     Args:
         vat: CNPJ do cliente (já limpo)
         project_ids: Lista de IDs dos projetos para buscar
         fields: Campos específicos a serem retornados
-        
+
     Returns:
         Lista de tarefas encontradas ou lista vazia
     """
     client = await get_odoo_client()
-    
+
     if fields is None:
-        fields = ['id', 'name', 'partner_id', 'stage_id', 
-                  'project_id', 'x_studio_numero_do_perdcomp', 
-                  'date_last_stage_update',
-                  'write_date']
-    
+        fields = [
+            'id',
+            'name',
+            'partner_id',
+            'stage_id',
+            'project_id',
+            'x_studio_numero_do_perdcomp',
+            'date_last_stage_update',
+            'write_date',
+        ]
+
     try:
         # Primeiro, buscar o(s) parceiro(s) com o CNPJ informado
         partners = await client.search_read(
-            'res.partner',
-            [['vat', '=', vat]],
-            fields=['id']
+            'res.partner', [['vat', '=', vat]], fields=['id']
         )
-        
+
         if not partners:
             logger.warning(f'Nenhum parceiro encontrado com o CNPJ {vat}')
             return []
-        
+
         # Extrair os IDs dos parceiros encontrados
         partner_ids = [partner['id'] for partner in partners]
-        
+
         # Buscar tarefas nos projetos especificados que tenham esses parceiros
         tasks = await client.search_read(
             TASK_MODEL,
             [
                 ['project_id', 'in', project_ids],
-                ['partner_id', 'in', partner_ids]
+                ['partner_id', 'in', partner_ids],
             ],
-            fields=fields
+            fields=fields,
         )
-        
-        logger.info(f'Encontradas {len(tasks)} tarefas para o CNPJ {vat} nos projetos {project_ids}')
-        
+
+        logger.info(
+            f'Encontradas {len(tasks)} tarefas para o CNPJ {vat} nos projetos {project_ids}'
+        )
+
         return tasks
-        
+
     except Exception as e:
         logger.error(f'Erro ao buscar tarefas por CNPJ nos projetos: {e}')
         return []

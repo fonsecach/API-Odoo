@@ -24,16 +24,17 @@ async def get_odoo_client() -> AsyncOdooClient:
     )
 
 
-async def get_clients_info(limit: int = 100, offset: int = 0,
-                         fields: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+async def get_clients_info(
+    limit: int = 100, offset: int = 0, fields: Optional[List[str]] = None
+) -> List[Dict[str, Any]]:
     """
     Obtém informações de vários clientes/empresas de forma assíncrona.
-    
+
     Args:
         limit: Limite de registros a serem retornados
         offset: Deslocamento para paginação
         fields: Campos específicos a serem retornados (usa padrão se None)
-        
+
     Returns:
         Lista de empresas ou lista vazia em caso de erro
     """
@@ -44,25 +45,23 @@ async def get_clients_info(limit: int = 100, offset: int = 0,
 
     try:
         return await client.search_read(
-            PARTNER_MODEL,
-            [],
-            fields=fields,
-            limit=limit,
-            offset=offset
+            PARTNER_MODEL, [], fields=fields, limit=limit, offset=offset
         )
     except Exception as e:
         logger.error(f'Erro ao buscar e ler informações das empresas: {e}')
         return []
 
 
-async def get_company_by_vat(vat: str, fields: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+async def get_company_by_vat(
+    vat: str, fields: Optional[List[str]] = None
+) -> List[Dict[str, Any]]:
     """
     Obtém uma empresa pelo VAT (CNPJ) de forma assíncrona.
-    
+
     Args:
         vat: Número do VAT (CNPJ)
         fields: Campos específicos a serem retornados (usa padrão se None)
-        
+
     Returns:
         Lista de empresas correspondentes ou lista vazia se não encontrada
     """
@@ -74,25 +73,28 @@ async def get_company_by_vat(vat: str, fields: Optional[List[str]] = None) -> Li
     try:
         vat = clean_vat(vat)  # Limpa o VAT antes de buscar
         return await client.search_read(
-            PARTNER_MODEL,
-            [['vat', '=', vat]],
-            fields=fields
+            PARTNER_MODEL, [['vat', '=', vat]], fields=fields
         )
     except Exception as e:
         logger.error(f'Erro ao buscar empresa pelo VAT {vat}: {e}')
         return []
 
 
-async def fetch_client_by_name(name: str, fields: Optional[List[str]] = None, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+async def fetch_client_by_name(
+    name: str,
+    fields: Optional[List[str]] = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> List[Dict[str, Any]]:
     """
     Obtém empresas que correspondam ao nome de forma parcial e case-insensitive, de forma assíncrona.
-    
+
     Args:
         name: Nome ou parte do nome da empresa
         fields: Campos específicos a serem retornados (usa padrão se None)
         limit: Limite de registros a serem retornados
         offset: Deslocamento para paginação
-        
+
     Returns:
         Lista de empresas correspondentes ou lista vazia se não encontrada
     """
@@ -105,24 +107,28 @@ async def fetch_client_by_name(name: str, fields: Optional[List[str]] = None, li
         # Busca por correspondência parcial com "ilike"
         return await client.search_read(
             PARTNER_MODEL,
-            [['name', 'ilike', name]],  # 'ilike' para busca parcial case-insensitive
+            [
+                ['name', 'ilike', name]
+            ],  # 'ilike' para busca parcial case-insensitive
             fields=fields,
             limit=limit,
-            offset=offset
+            offset=offset,
         )
     except Exception as e:
         logger.error(f'Erro ao buscar clientes pelo nome {name}: {e}')
         return []
 
 
-async def get_company_by_id(id: int, fields: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+async def get_company_by_id(
+    id: int, fields: Optional[List[str]] = None
+) -> List[Dict[str, Any]]:
     """
     Obtém uma empresa pelo ID de forma assíncrona.
-    
+
     Args:
         id: ID da empresa
         fields: Campos específicos a serem retornados (usa padrão se None)
-        
+
     Returns:
         Lista com a empresa correspondente ou lista vazia se não encontrada
     """
@@ -133,22 +139,22 @@ async def get_company_by_id(id: int, fields: Optional[List[str]] = None) -> List
 
     try:
         return await client.search_read(
-            PARTNER_MODEL,
-            [['id', '=', id]],
-            fields=fields
+            PARTNER_MODEL, [['id', '=', id]], fields=fields
         )
     except Exception as e:
         logger.error(f'Erro ao buscar empresa pelo ID {id}: {e}')
         return []
 
 
-async def create_company(company_info: Union[CompanyDefault, Dict[str, Any]]) -> Optional[int]:
+async def create_company(
+    company_info: Union[CompanyDefault, Dict[str, Any]],
+) -> Optional[int]:
     """
     Cria uma nova empresa no Odoo de forma assíncrona.
-    
+
     Args:
         company_info: Dados da empresa a ser criada (CompanyDefault ou Dict)
-        
+
     Returns:
         ID da empresa criada ou None em caso de erro
     """
@@ -166,11 +172,13 @@ async def create_company(company_info: Union[CompanyDefault, Dict[str, Any]]) ->
             PARTNER_MODEL,
             [['vat', '=', company_data['vat']]],
             fields=['id'],
-            limit=1
+            limit=1,
         )
 
         if existing:
-            logger.warning(f"Empresa com VAT {company_data['vat']} já está cadastrada")
+            logger.warning(
+                f'Empresa com VAT {company_data["vat"]} já está cadastrada'
+            )
             return None
 
         return await client.create(PARTNER_MODEL, company_data)
@@ -179,14 +187,16 @@ async def create_company(company_info: Union[CompanyDefault, Dict[str, Any]]) ->
         return None
 
 
-async def update_company(company_id: int, company_info: Union[CompanyDefault, Dict[str, Any]]) -> bool:
+async def update_company(
+    company_id: int, company_info: Union[CompanyDefault, Dict[str, Any]]
+) -> bool:
     """
     Atualiza uma empresa existente no Odoo de forma assíncrona.
-    
+
     Args:
         company_id: ID da empresa a ser atualizada
         company_info: Dados da empresa para atualização (CompanyDefault ou Dict)
-        
+
     Returns:
         True se bem-sucedido, False se falhar
     """
@@ -208,10 +218,10 @@ async def update_company(company_id: int, company_info: Union[CompanyDefault, Di
 async def delete_company(company_id: int) -> bool:
     """
     Exclui uma empresa do Odoo de forma assíncrona.
-    
+
     Args:
         company_id: ID da empresa a ser excluída
-        
+
     Returns:
         True se bem-sucedido, False se falhar
     """
@@ -224,14 +234,16 @@ async def delete_company(company_id: int) -> bool:
         return False
 
 
-async def update_contact_fields(contact_id: int, contact_update: ContactUpdate) -> bool:
+async def update_contact_fields(
+    contact_id: int, contact_update: ContactUpdate
+) -> bool:
     """
     Atualiza campos específicos de um contato/cliente de forma assíncrona.
-    
+
     Args:
         contact_id: ID do contato a ser atualizado
         contact_update: Dados para atualização (ContactUpdate)
-        
+
     Returns:
         True se bem-sucedido, False se falhar
     """
@@ -242,15 +254,23 @@ async def update_contact_fields(contact_id: int, contact_update: ContactUpdate) 
 
         # Atualiza o certificado se fornecido
         if contact_update.x_studio_certificado is not None:
-            update_data['x_studio_certificado'] = contact_update.x_studio_certificado
+            update_data['x_studio_certificado'] = (
+                contact_update.x_studio_certificado
+            )
 
         # Atualiza a validade da procuração se fornecida
         if contact_update.x_studio_validade_da_procuracao is not None:
-            update_data['x_studio_validade_da_procuracao'] = contact_update.x_studio_validade_da_procuracao.strftime('%Y-%m-%d')
+            update_data['x_studio_validade_da_procuracao'] = (
+                contact_update.x_studio_validade_da_procuracao.strftime(
+                    '%Y-%m-%d'
+                )
+            )
 
         # Retorna True se não houver campos para atualizar
         if not update_data:
-            logger.info(f"Nenhum campo para atualizar para o contato ID {contact_id}")
+            logger.info(
+                f'Nenhum campo para atualizar para o contato ID {contact_id}'
+            )
             return True
 
         return await client.write(PARTNER_MODEL, contact_id, update_data)
@@ -262,10 +282,10 @@ async def update_contact_fields(contact_id: int, contact_update: ContactUpdate) 
 async def get_or_create_partner(contact_name: str) -> Optional[int]:
     """
     Verifica se o cliente já existe, senão cria um novo de forma assíncrona.
-    
+
     Args:
         contact_name: Nome do contato/cliente
-        
+
     Returns:
         ID do cliente/parceiro existente ou novo, None em caso de erro
     """
@@ -274,9 +294,7 @@ async def get_or_create_partner(contact_name: str) -> Optional[int]:
     try:
         # Tenta encontrar o cliente pelo nome
         existing_partners = await client.search_read(
-            PARTNER_MODEL,
-            [['name', '=', contact_name]],
-            fields=['id']
+            PARTNER_MODEL, [['name', '=', contact_name]], fields=['id']
         )
 
         if existing_partners:

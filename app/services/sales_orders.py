@@ -11,7 +11,7 @@ from app.services.authentication import authenticate_odoo, connect_to_odoo
 def get_sales_orders(models, db, uid, password, limit=100, offset=0):
     """
     Obtém uma lista de pedidos de venda do Odoo.
-    
+
     :param limit: Limite de registros a serem retornados
     :param offset: Deslocamento para paginação
     :return: Lista de pedidos ou lista vazia em caso de erro
@@ -35,7 +35,7 @@ def get_sales_orders(models, db, uid, password, limit=100, offset=0):
 def get_sales_order_by_id(models, db, uid, password, order_id):
     """
     Busca um pedido de venda específico pelo ID.
-    
+
     :param order_id: ID do pedido a ser buscado
     :return: Dados do pedido ou None se não encontrado
     """
@@ -60,7 +60,7 @@ def search_sales_orders_by_name(
 ):
     """
     Busca pedidos de venda pelo nome ou nome do cliente.
-    
+
     :param name: Termo de busca para o nome
     :param limit: Limite de registros a serem retornados
     :param offset: Deslocamento para paginação
@@ -91,7 +91,7 @@ def search_sales_orders_by_name(
 def create_sales_order_in_odoo(order_data: dict, models, db, uid, password):
     """
     Cria um novo pedido de venda no Odoo.
-    
+
     :param order_data: Dados do pedido de venda
     :return: ID do pedido criado ou exceção em caso de erro
     """
@@ -102,7 +102,7 @@ def create_sales_order_in_odoo(order_data: dict, models, db, uid, password):
             line_data = {
                 'product_id': line['product_id'],
                 'product_uom_qty': line['product_uom_qty'],
-                'price_unit': line['price_unit']
+                'price_unit': line['price_unit'],
             }
             if line.get('name'):
                 line_data['name'] = line['name']
@@ -112,17 +112,12 @@ def create_sales_order_in_odoo(order_data: dict, models, db, uid, password):
         order_data['order_line'] = order_lines
 
         return models.execute_kw(
-            db,
-            uid,
-            password,
-            'sale.order',
-            'create',
-            [order_data]
+            db, uid, password, 'sale.order', 'create', [order_data]
         )
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f'Erro ao criar pedido de venda: {str(e)}'
+            detail=f'Erro ao criar pedido de venda: {str(e)}',
         )
 
 
@@ -145,14 +140,14 @@ class SalesOrderService:
         uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
 
         if not uid:
-            raise ValueError("Falha na autenticação no Odoo")
+            raise ValueError('Falha na autenticação no Odoo')
 
         try:
             # Prepara as linhas do pedido
             order_lines = []
 
             # Se não houver linhas de pedido, adiciona uma linha com valores default
-            if not order_data.get("order_line"):
+            if not order_data.get('order_line'):
                 default_line = {
                     'product_id': 119,
                     'product_uom_qty': 1,
@@ -160,44 +155,51 @@ class SalesOrderService:
                 }
                 order_lines.append((0, 0, default_line))
             else:
-                for line in order_data.get("order_line", []):
+                for line in order_data.get('order_line', []):
                     line_data = {
-                        'product_id': line.get("product_id", 119),
-                        'product_uom_qty': line.get("product_uom_qty", 1),
-                        'price_unit': line.get("price_unit", 1),
+                        'product_id': line.get('product_id', 119),
+                        'product_uom_qty': line.get('product_uom_qty', 1),
+                        'price_unit': line.get('price_unit', 1),
                     }
                     # Adiciona descrição se disponível
-                    if "name" in line:
-                        line_data["name"] = line["name"]
+                    if 'name' in line:
+                        line_data['name'] = line['name']
 
                     order_lines.append((0, 0, line_data))
 
             # Dados obrigatórios para o pedido
             order_vals = {
-                'partner_id': order_data.get("partner_id"),
+                'partner_id': order_data.get('partner_id'),
                 'order_line': order_lines,
-                'user_id': order_data.get("user_id", 3),  # Default user_id = 3
+                'user_id': order_data.get('user_id', 3),  # Default user_id = 3
             }
 
             # Formata data do pedido para o formato esperado pelo Odoo
-            date_order = order_data.get("date_order")
+            date_order = order_data.get('date_order')
             if date_order:
                 if isinstance(date_order, datetime):
-                    date_order = date_order.strftime("%Y-%m-%d %H:%M:%S")
-                order_vals["date_order"] = date_order
+                    date_order = date_order.strftime('%Y-%m-%d %H:%M:%S')
+                order_vals['date_order'] = date_order
             else:
                 # Se não foi fornecida uma data, usa a data atual
-                order_vals["date_order"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                order_vals['date_order'] = datetime.now().strftime(
+                    '%Y-%m-%d %H:%M:%S'
+                )
 
             # Adiciona referência do cliente se fornecida
-            if "client_order_ref" in order_data:
-                order_vals["client_order_ref"] = order_data["client_order_ref"]
+            if 'client_order_ref' in order_data:
+                order_vals['client_order_ref'] = order_data['client_order_ref']
 
             # Adiciona o tipo do pedido (com valor default se não fornecido)
-            order_vals["type_name"] = order_data.get("type_name", "Pedido de venda")
+            order_vals['type_name'] = order_data.get(
+                'type_name', 'Pedido de venda'
+            )
 
             # Verifica e vincula oportunidade se fornecida
-            if "opportunity_id" in order_data and order_data["opportunity_id"] is not None:
+            if (
+                'opportunity_id' in order_data
+                and order_data['opportunity_id'] is not None
+            ):
                 # Verifica se a oportunidade existe
                 opportunity_exists = models.execute_kw(
                     ODOO_DB,
@@ -205,13 +207,15 @@ class SalesOrderService:
                     ODOO_PASSWORD,
                     'crm.lead',
                     'search_count',
-                    [[['id', '=', order_data["opportunity_id"]]]]
+                    [[['id', '=', order_data['opportunity_id']]]],
                 )
 
                 if opportunity_exists:
-                    order_vals["opportunity_id"] = order_data["opportunity_id"]
+                    order_vals['opportunity_id'] = order_data['opportunity_id']
                 else:
-                    raise ValueError(f"Oportunidade com ID {order_data['opportunity_id']} não existe")
+                    raise ValueError(
+                        f'Oportunidade com ID {order_data["opportunity_id"]} não existe'
+                    )
 
             # Cria o pedido de venda no Odoo
             order_id = models.execute_kw(
@@ -224,15 +228,17 @@ class SalesOrderService:
             )
 
             if not order_id:
-                raise ValueError("Falha ao criar o pedido de venda")
+                raise ValueError('Falha ao criar o pedido de venda')
 
             return order_id
 
         except Exception as e:
-            raise ValueError(f"Erro ao criar o pedido de venda: {str(e)}")
+            raise ValueError(f'Erro ao criar o pedido de venda: {str(e)}')
 
 
-def update_sales_order_fields(models, db, uid, password, order_id, fields_data):
+def update_sales_order_fields(
+    models, db, uid, password, order_id, fields_data
+):
     """
     Atualiza campos específicos de um pedido de venda.
     :param order_id: ID do pedido a ser atualizado

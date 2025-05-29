@@ -5,15 +5,19 @@ from fastapi import HTTPException
 
 
 def get_model_fields(
-    models, db: str, uid: int, password: str, model_name: str,
+    models,
+    db: str,
+    uid: int,
+    password: str,
+    model_name: str,
     attributes: Optional[List[str]] = None,
     field_names: Optional[List[str]] = None,
     field_type: Optional[str] = None,
-    search_term: Optional[str] = None
+    search_term: Optional[str] = None,
 ) -> Dict:
     """
     Get fields information for a specific Odoo model with filtering options.
-    
+
     Args:
         models: The XML-RPC model proxy object
         db: The Odoo database name
@@ -24,7 +28,7 @@ def get_model_fields(
         field_names: Optional list of specific field names to return
         field_type: Optional filter to return only fields of a specific type (e.g., 'many2one', 'char', etc.)
         search_term: Optional search term to filter fields by name or label
-        
+
     Returns:
         A dictionary containing filtered field information for the specified model
     """
@@ -41,7 +45,7 @@ def get_model_fields(
             model_name,
             'fields_get',
             [],
-            {'attributes': attributes}
+            {'attributes': attributes},
         )
 
         # Apply filters
@@ -60,8 +64,10 @@ def get_model_fields(
             if search_term:
                 search_term_lower = search_term.lower()
                 field_label = field_data.get('string', '').lower()
-                if (search_term_lower not in field_name.lower() and
-                    search_term_lower not in field_label):
+                if (
+                    search_term_lower not in field_name.lower()
+                    and search_term_lower not in field_label
+                ):
                     continue
 
             # If it passes all filters, add it to the result
@@ -71,29 +77,31 @@ def get_model_fields(
 
     except Exception as e:
         # Check if exception is due to model not existing
-        if "Object does not exist" in str(e):
+        if 'Object does not exist' in str(e):
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
-                detail=f"Model '{model_name}' does not exist in Odoo."
+                detail=f"Model '{model_name}' does not exist in Odoo.",
             )
         else:
             raise HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail=f"Error fetching fields for model '{model_name}': {str(e)}"
+                detail=f"Error fetching fields for model '{model_name}': {str(e)}",
             )
 
 
-def get_available_models(models, db: str, uid: int, password: str, search_term: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_available_models(
+    models, db: str, uid: int, password: str, search_term: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """
     Get a list of available models in Odoo, with optional filtering by name.
-    
+
     Args:
         models: The XML-RPC model proxy object
         db: The Odoo database name
         uid: The authenticated user ID
         password: The user password
         search_term: Optional search term to filter models
-        
+
     Returns:
         A list of dictionaries with model information
     """
@@ -104,7 +112,7 @@ def get_available_models(models, db: str, uid: int, password: str, search_term: 
             domain = [
                 '|',
                 ('model', 'ilike', search_term),
-                ('name', 'ilike', search_term)
+                ('name', 'ilike', search_term),
             ]
 
         model_records = models.execute_kw(
@@ -114,7 +122,7 @@ def get_available_models(models, db: str, uid: int, password: str, search_term: 
             'ir.model',
             'search_read',
             [domain],
-            {'fields': ['model', 'name', 'info', 'state']}
+            {'fields': ['model', 'name', 'info', 'state']},
         )
 
         return model_records
@@ -122,5 +130,5 @@ def get_available_models(models, db: str, uid: int, password: str, search_term: 
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching available models: {str(e)}"
+            detail=f'Error fetching available models: {str(e)}',
         )

@@ -13,7 +13,7 @@ router = APIRouter(prefix='/custom-fields', tags=['Custom Fields'])
 @router.put(
     '/selection',
     summary='Atualiza valores de campo de seleção',
-    response_description='Valores atualizados com sucesso'
+    response_description='Valores atualizados com sucesso',
 )
 async def update_selection_field(update_data: SelectionFieldUpdate):
     common, models = connect_to_odoo(ODOO_URL)
@@ -32,7 +32,7 @@ async def update_selection_field(update_data: SelectionFieldUpdate):
         ODOO_PASSWORD,
         update_data.model_name,
         update_data.field_name,
-        update_data.values
+        update_data.values,
     )
 
     return result

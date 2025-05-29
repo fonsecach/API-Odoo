@@ -18,7 +18,6 @@ router = APIRouter(prefix='/sales_orders', tags=['Pedidos de venda'])
 
 @router.get('/', summary='Lista pedidos de venda cadastrados')
 async def list_sales_orders(limit: int = 100, offset: int = 0):
-
     # Endpoint para listar todos os pedidos de venda com paginação.
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
@@ -44,7 +43,6 @@ async def list_sales_orders(limit: int = 100, offset: int = 0):
 
 @router.get('/{order_id}', summary='Busca pedido de venda por ID')
 async def get_order_by_id(order_id: int):
-
     # Endpoint para buscar um pedido de venda específico pelo ID.
 
     common, models = connect_to_odoo(ODOO_URL)
@@ -71,7 +69,6 @@ async def get_order_by_id(order_id: int):
 
 @router.get('/search/', summary='Busca pedidos de venda por nome')
 async def search_orders_by_name(name: str, limit: int = 100, offset: int = 0):
-
     # Endpoint para buscar pedidos de venda pelo nome ou nome do cliente.
 
     common, models = connect_to_odoo(ODOO_URL)
@@ -96,11 +93,13 @@ async def search_orders_by_name(name: str, limit: int = 100, offset: int = 0):
     return {'sales_orders': sales_orders}
 
 
-@router.post('/', summary='Cria um novo pedido de venda', status_code=HTTPStatus.CREATED)
+@router.post(
+    '/', summary='Cria um novo pedido de venda', status_code=HTTPStatus.CREATED
+)
 async def create_sales_order(order: SaleOrderCreate):
     """
     Endpoint para criar um novo pedido de venda no Odoo.
-    
+
     Recebe os dados do pedido, valida campos obrigatórios e opcionalmente
     vincula a uma oportunidade existente.
     """
@@ -109,16 +108,19 @@ async def create_sales_order(order: SaleOrderCreate):
         order_data = order.dict(exclude_unset=True)
 
         # Verifica campos obrigatórios
-        if not order_data.get("partner_id"):
+        if not order_data.get('partner_id'):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
-                detail="O campo partner_id é obrigatório"
+                detail='O campo partner_id é obrigatório',
             )
 
-        if not order_data.get("order_line") or len(order_data["order_line"]) == 0:
+        if (
+            not order_data.get('order_line')
+            or len(order_data['order_line']) == 0
+        ):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
-                detail="É necessário pelo menos um item na linha de pedido"
+                detail='É necessário pelo menos um item na linha de pedido',
             )
 
         # Chama o serviço para criar o pedido de venda
@@ -127,11 +129,11 @@ async def create_sales_order(order: SaleOrderCreate):
         response = {
             'order_id': order_id,
             'status': 'success',
-            'message': 'Pedido de venda criado com sucesso'
+            'message': 'Pedido de venda criado com sucesso',
         }
 
-        if order_data.get("opportunity_id"):
-            response['opportunity_id'] = order_data["opportunity_id"]
+        if order_data.get('opportunity_id'):
+            response['opportunity_id'] = order_data['opportunity_id']
             response['message'] += ' e vinculado à oportunidade'
 
         return response
@@ -144,7 +146,7 @@ async def create_sales_order(order: SaleOrderCreate):
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Erro interno ao processar a requisição: {str(e)}",
+            detail=f'Erro interno ao processar a requisição: {str(e)}',
         )
 
 

@@ -31,8 +31,7 @@ def format_decimal(value: float) -> float:
 
 
 def get_won_opportunities(
-    models, db: str, uid: int, password: str,
-    start_date: str, end_date: str
+    models, db: str, uid: int, password: str, start_date: str, end_date: str
 ) -> List[Dict]:
     """
     Obtém as oportunidades ganhas e ativas no período especificado (stage_id = 10).
@@ -51,25 +50,40 @@ def get_won_opportunities(
             ('date_last_stage_update', '<=', end_date),
         ]
 
-        logger.info(f"Buscando oportunidades ganhas e ativas (estágio 10) no período {start_date} até {end_date}")
+        logger.info(
+            f'Buscando oportunidades ganhas e ativas (estágio 10) no período {start_date} até {end_date}'
+        )
 
         # Buscar oportunidades ganhas com todos os campos necessários
         opportunities = models.execute_kw(
-            db, uid, password,
+            db,
+            uid,
+            password,
             'crm.lead',
             'search_read',
             [domain],
             {
                 'fields': [
-                    'id', 'name', 'team_id', 'user_id', 'expected_revenue',
-                    'date_closed', 'partner_id', 'x_studio_tese',
-                    'date_last_stage_update', 'stage_id', 'active',
-                    'x_studio_selection_field_37f_1ibrq64l3', 'x_studio_segmento'
+                    'id',
+                    'name',
+                    'team_id',
+                    'user_id',
+                    'expected_revenue',
+                    'date_closed',
+                    'partner_id',
+                    'x_studio_tese',
+                    'date_last_stage_update',
+                    'stage_id',
+                    'active',
+                    'x_studio_selection_field_37f_1ibrq64l3',
+                    'x_studio_segmento',
                 ]
-            }
+            },
         )
 
-        logger.info(f"Encontradas {len(opportunities)} oportunidades ganhas e ativas no período")
+        logger.info(
+            f'Encontradas {len(opportunities)} oportunidades ganhas e ativas no período'
+        )
 
         return opportunities
     except Exception as e:
@@ -91,21 +105,33 @@ def get_won_opportunities(
             logger.info("Tentando busca alternativa sem filtro de 'active'")
 
             opportunities = models.execute_kw(
-                db, uid, password,
+                db,
+                uid,
+                password,
                 'crm.lead',
                 'search_read',
                 [domain],
                 {
                     'fields': [
-                        'id', 'name', 'team_id', 'user_id', 'expected_revenue',
-                        'date_closed', 'partner_id', 'x_studio_tese',
-                        'date_last_stage_update', 'stage_id',
-                        'x_studio_selection_field_37f_1ibrq64l3', 'x_studio_segmento'
+                        'id',
+                        'name',
+                        'team_id',
+                        'user_id',
+                        'expected_revenue',
+                        'date_closed',
+                        'partner_id',
+                        'x_studio_tese',
+                        'date_last_stage_update',
+                        'stage_id',
+                        'x_studio_selection_field_37f_1ibrq64l3',
+                        'x_studio_segmento',
                     ]
-                }
+                },
             )
 
-            logger.info(f"Encontradas {len(opportunities)} oportunidades ganhas no período (sem filtro 'active')")
+            logger.info(
+                f"Encontradas {len(opportunities)} oportunidades ganhas no período (sem filtro 'active')"
+            )
 
             return opportunities
         except Exception as e2:
@@ -113,17 +139,19 @@ def get_won_opportunities(
             return []
 
 
-def prepare_opportunity_details(opportunities: List[Dict], models, db: str, uid: int, password: str) -> List[Dict]:
+def prepare_opportunity_details(
+    opportunities: List[Dict], models, db: str, uid: int, password: str
+) -> List[Dict]:
     """
     Prepara o objeto detalhado de oportunidades com as informações solicitadas.
-    
+
     Args:
         opportunities: Lista de oportunidades a serem processadas
         models: Objeto de modelos do Odoo
         db: Nome do banco de dados
         uid: ID do usuário autenticado
         password: Senha do usuário
-        
+
     Returns:
         Lista de objetos detalhados de oportunidades
     """
@@ -136,14 +164,18 @@ def prepare_opportunity_details(opportunities: List[Dict], models, db: str, uid:
             if date_closed:
                 # Tentar formatar a data para um formato mais amigável
                 try:
-                    date_obj = datetime.strptime(date_closed, '%Y-%m-%d %H:%M:%S')
+                    date_obj = datetime.strptime(
+                        date_closed, '%Y-%m-%d %H:%M:%S'
+                    )
                     date_closed = date_obj.strftime('%d/%m/%Y')
                 except (ValueError, TypeError):
                     # Manter o formato original se não for possível converter
                     pass
 
             # Formatação da receita esperada para 2 casas decimais
-            expected_revenue = format_decimal(float(opp.get('expected_revenue', 0)))
+            expected_revenue = format_decimal(
+                float(opp.get('expected_revenue', 0))
+            )
 
             # Obter o VAT do parceiro se disponível
             vat = None
@@ -151,19 +183,25 @@ def prepare_opportunity_details(opportunities: List[Dict], models, db: str, uid:
                 # Busca o parceiro para obter o VAT
                 try:
                     partner = models.execute_kw(
-                        db, uid, password,
+                        db,
+                        uid,
+                        password,
                         'res.partner',
                         'search_read',
                         [[['id', '=', opp['partner_id'][0]]]],
-                        {'fields': ['vat']}
+                        {'fields': ['vat']},
                     )
                     if partner and partner[0].get('vat'):
                         vat = partner[0]['vat']
                 except Exception as e:
-                    logger.error(f"Erro ao buscar VAT do parceiro ID {opp['partner_id'][0]}: {e}")
+                    logger.error(
+                        f'Erro ao buscar VAT do parceiro ID {opp["partner_id"][0]}: {e}'
+                    )
 
             # Garantir que commercial_partner seja string ou None
-            commercial_partner = opp.get('x_studio_selection_field_37f_1ibrq64l3')
+            commercial_partner = opp.get(
+                'x_studio_selection_field_37f_1ibrq64l3'
+            )
             if commercial_partner is False:
                 commercial_partner = None
             elif commercial_partner is not None:
@@ -187,12 +225,14 @@ def prepare_opportunity_details(opportunities: List[Dict], models, db: str, uid:
                 'sales_person': opp.get('user_id') and opp['user_id'][1] or '',
                 'commercial_partner': commercial_partner,  # Já convertido para string ou None
                 'segment': segment,  # Já convertido para string ou None
-                'sales_team': opp.get('team_id') and opp['team_id'][1] or ''
+                'sales_team': opp.get('team_id') and opp['team_id'][1] or '',
             }
 
             opportunity_details.append(detail)
         except Exception as e:
-            logger.error(f"Erro ao processar detalhes da oportunidade ID {opp.get('id', 'desconhecido')}: {e}")
+            logger.error(
+                f'Erro ao processar detalhes da oportunidade ID {opp.get("id", "desconhecido")}: {e}'
+            )
             # Continuar para a próxima oportunidade se houver erro
             continue
 
@@ -200,8 +240,13 @@ def prepare_opportunity_details(opportunities: List[Dict], models, db: str, uid:
 
 
 def process_opportunities_analytics(
-    models, db: str, uid: int, password: str,
-    opportunities: List[Dict], start_date: str, end_date: str
+    models,
+    db: str,
+    uid: int,
+    password: str,
+    opportunities: List[Dict],
+    start_date: str,
+    end_date: str,
 ) -> Dict:
     """
     Processa métricas de análise a partir das oportunidades ganhas.
@@ -225,7 +270,9 @@ def process_opportunities_analytics(
         team_name = opp['team_id'][1]
         user_id = opp['user_id'][0]
         user_name = opp['user_id'][1]
-        amount = float(opp.get('expected_revenue', 0))  # Converter para float explicitamente
+        amount = float(
+            opp.get('expected_revenue', 0)
+        )  # Converter para float explicitamente
 
         # Adicionar aos arrays para cálculos NumPy por equipe
         if team_id not in team_totals:
@@ -239,11 +286,13 @@ def process_opportunities_analytics(
                 'name': team_name,
                 'total_contracts': 0,
                 'total_amount': 0.0,
-                'expected_revenue_partial': 0.0
+                'expected_revenue_partial': 0.0,
             }
 
         teams_data[team_id]['total_contracts'] += 1
-        teams_data[team_id]['total_amount'] = np.float64(teams_data[team_id]['total_amount']) + np.float64(amount)
+        teams_data[team_id]['total_amount'] = np.float64(
+            teams_data[team_id]['total_amount']
+        ) + np.float64(amount)
 
         # Processar dados por vendedor
         if user_id not in users_data:
@@ -253,11 +302,13 @@ def process_opportunities_analytics(
                 'team_id': team_id,
                 'team_name': team_name,
                 'total_contracts': 0,
-                'total_amount': 0.0
+                'total_amount': 0.0,
             }
 
         users_data[user_id]['total_contracts'] += 1
-        users_data[user_id]['total_amount'] = np.float64(users_data[user_id]['total_amount']) + np.float64(amount)
+        users_data[user_id]['total_amount'] = np.float64(
+            users_data[user_id]['total_amount']
+        ) + np.float64(amount)
 
         # Adicionar dados por tese (produto)
         if opp.get('x_studio_tese'):
@@ -268,11 +319,13 @@ def process_opportunities_analytics(
                     'id': None,
                     'name': tese,
                     'total_sales': 0,
-                    'total_amount': 0.0
+                    'total_amount': 0.0,
                 }
 
             products_data[tese]['total_sales'] += 1
-            products_data[tese]['total_amount'] = np.float64(products_data[tese]['total_amount']) + np.float64(amount)
+            products_data[tese]['total_amount'] = np.float64(
+                products_data[tese]['total_amount']
+            ) + np.float64(amount)
 
     # Calcular expected_revenue_partial com maior precisão usando NumPy
     for team_id, amounts in team_totals.items():
@@ -281,12 +334,16 @@ def process_opportunities_analytics(
             total = np.sum(np.array(amounts, dtype=np.float64))
             teams_data[team_id]['total_amount'] = float(total)
             # Calcular os 8% com maior precisão
-            teams_data[team_id]['expected_revenue_partial'] = float(np.multiply(total, np.float64(0.08)))
+            teams_data[team_id]['expected_revenue_partial'] = float(
+                np.multiply(total, np.float64(0.08))
+            )
 
     # Formatar valores decimais com 2 casas utilizando NumPy para maior precisão
     for team in teams_data.values():
         team['total_amount'] = format_decimal(team['total_amount'])
-        team['expected_revenue_partial'] = format_decimal(team['expected_revenue_partial'])
+        team['expected_revenue_partial'] = format_decimal(
+            team['expected_revenue_partial']
+        )
 
     for user in users_data.values():
         user['total_amount'] = format_decimal(user['total_amount'])
@@ -296,19 +353,15 @@ def process_opportunities_analytics(
 
     # Formatar para retorno
     return {
-        'period': {
-            'start_date': start_date,
-            'end_date': end_date
-        },
+        'period': {'start_date': start_date, 'end_date': end_date},
         'teams': list(teams_data.values()),
         'users': list(users_data.values()),
-        'products': list(products_data.values())
+        'products': list(products_data.values()),
     }
 
 
 def get_sales_analytics(
-    models, db: str, uid: int, password: str,
-    start_date: str, end_date: str
+    models, db: str, uid: int, password: str, start_date: str, end_date: str
 ) -> Dict:
     """
     Obtém métricas de análise de vendas por equipe, vendedor e produto.
@@ -319,26 +372,24 @@ def get_sales_analytics(
         start_date_odoo = format_date_for_odoo(parse_date(start_date))
         end_date_odoo = format_date_for_odoo(parse_date(end_date))
 
-        logger.info(f"Iniciando análise de vendas para o período: {start_date} até {end_date}")
+        logger.info(
+            f'Iniciando análise de vendas para o período: {start_date} até {end_date}'
+        )
 
         # Obter oportunidades ganhas no período
         won_opportunities = get_won_opportunities(
-            models, db, uid, password,
-            start_date_odoo, end_date_odoo
+            models, db, uid, password, start_date_odoo, end_date_odoo
         )
 
         if not won_opportunities:
-            logger.warning("Nenhuma oportunidade ganha encontrada no período")
+            logger.warning('Nenhuma oportunidade ganha encontrada no período')
 
             return {
-                'period': {
-                    'start_date': start_date,
-                    'end_date': end_date
-                },
+                'period': {'start_date': start_date, 'end_date': end_date},
                 'teams': [],
                 'users': [],
                 'products': [],
-                'opportunities': []
+                'opportunities': [],
             }
 
         # Preparar os detalhes das oportunidades - Agora passando os parâmetros corretos

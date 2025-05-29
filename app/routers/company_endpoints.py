@@ -21,7 +21,9 @@ from app.services.company_service import (
 )
 from app.utils.utils import clean_vat
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/company', tags=['company'])
@@ -31,14 +33,14 @@ router = APIRouter(prefix='/company', tags=['company'])
 async def list_companies(limit: int = 100, offset=0):
     """
     Endpoint para listar todas as empresas cadastradas de forma assíncrona.
-    
+
     Args:
         limit: Limite de registros a serem retornados
         offset: Deslocamento para paginação
-        
+
     Returns:
         Lista de empresas encontradas
-        
+
     Raises:
         HTTPException: Se nenhuma empresa for encontrada ou houver um erro
     """
@@ -59,13 +61,13 @@ async def list_companies(limit: int = 100, offset=0):
 async def list_companies_by_vat(vat: str):
     """
     Endpoint para buscar uma empresa pelo VAT (CNPJ) de forma assíncrona.
-    
+
     Args:
         vat: Número do VAT (CNPJ)
-        
+
     Returns:
         Empresa correspondente ao VAT
-        
+
     Raises:
         HTTPException: Se a empresa não for encontrada ou houver um erro
     """
@@ -91,19 +93,21 @@ async def list_companies_by_vat(vat: str):
 async def get_clients_by_name(name: str, limit: int = 100, offset: int = 0):
     """
     Endpoint para buscar clientes pelo nome (ou parte do nome) da empresa de forma assíncrona.
-    
+
     Args:
         name: Nome ou parte do nome da empresa
         limit: Limite de registros a serem retornados
         offset: Deslocamento para paginação
-        
+
     Returns:
         Lista de clientes correspondentes ao nome
-        
+
     Raises:
         HTTPException: Se nenhum cliente for encontrado ou houver um erro
     """
-    companies_info = await fetch_client_by_name(name, limit=limit, offset=offset)
+    companies_info = await fetch_client_by_name(
+        name, limit=limit, offset=offset
+    )
 
     if not companies_info:
         raise HTTPException(
@@ -114,7 +118,7 @@ async def get_clients_by_name(name: str, limit: int = 100, offset: int = 0):
     return {
         'clients': companies_info,
         'count': len(companies_info),
-        'search_term': name
+        'search_term': name,
     }
 
 
@@ -122,13 +126,13 @@ async def get_clients_by_name(name: str, limit: int = 100, offset: int = 0):
 async def list_companies_by_id(id: int):
     """
     Endpoint para buscar uma empresa pelo ID de forma assíncrona.
-    
+
     Args:
         id: ID da empresa
-        
+
     Returns:
         Empresa correspondente ao ID
-        
+
     Raises:
         HTTPException: Se a empresa não for encontrada ou houver um erro
     """
@@ -154,23 +158,29 @@ from fastapi import status
     status_code=status.HTTP_201_CREATED,
     response_model=CompanyReturn,
 )
-async def create_company_route(company_info: CompanyDefault, request: Request, background_tasks: BackgroundTasks):
+async def create_company_route(
+    company_info: CompanyDefault,
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
     """
     Endpoint para criar uma nova empresa no Odoo de forma assíncrona.
-    
+
     Args:
         company_info: Dados da empresa a ser criada
         request: Objeto de requisição para identificação do cliente
         background_tasks: Gerenciador de tarefas em background do FastAPI
-        
+
     Returns:
         Dados da empresa criada
-        
+
     Raises:
         HTTPException: Se houver um erro na criação
     """
     client_ip = request.client.host
-    logger.info(f"Requisição para criar empresa '{company_info.name}' recebida de {client_ip}")
+    logger.info(
+        f"Requisição para criar empresa '{company_info.name}' recebida de {client_ip}"
+    )
 
     # Limpar e validar VAT
     try:
@@ -195,7 +205,9 @@ async def create_company_route(company_info: CompanyDefault, request: Request, b
             status_code=HTTPStatus.BAD_REQUEST, detail='Nenhuma empresa criada'
         )
 
-    logger.info(f"Empresa '{company_info.name}' criada com sucesso, ID: {company_id}")
+    logger.info(
+        f"Empresa '{company_info.name}' criada com sucesso, ID: {company_id}"
+    )
 
     return {
         'company_id': company_id,
@@ -215,14 +227,14 @@ async def create_company_route(company_info: CompanyDefault, request: Request, b
 async def update_company_route(company_id: int, company_info: CompanyDefault):
     """
     Endpoint para atualizar uma empresa existente de forma assíncrona.
-    
+
     Args:
         company_id: ID da empresa a ser atualizada
         company_info: Dados atualizados da empresa
-        
+
     Returns:
         Confirmação da atualização
-        
+
     Raises:
         HTTPException: Se a empresa não for encontrada ou houver um erro na atualização
     """
@@ -244,7 +256,7 @@ async def update_company_route(company_id: int, company_info: CompanyDefault):
             detail='Nenhuma empresa atualizada',
         )
 
-    logger.info(f"Empresa ID {company_id} atualizada com sucesso")
+    logger.info(f'Empresa ID {company_id} atualizada com sucesso')
 
     return {'company_id': company_id}
 
@@ -258,13 +270,13 @@ async def update_company_route(company_id: int, company_info: CompanyDefault):
 async def delete_company_route(company_id: int):
     """
     Endpoint para excluir uma empresa de forma assíncrona.
-    
+
     Args:
         company_id: ID da empresa a ser excluída
-        
+
     Returns:
         Mensagem de confirmação
-        
+
     Raises:
         HTTPException: Se a empresa não for encontrada ou houver um erro na exclusão
     """
@@ -286,34 +298,41 @@ async def delete_company_route(company_id: int):
             detail='Nenhuma empresa excluída',
         )
 
-    logger.info(f"Empresa ID {company_id} excluída com sucesso")
+    logger.info(f'Empresa ID {company_id} excluída com sucesso')
 
     return {'message': 'User deleted'}
 
 
-@router.patch('/{id}', summary='Atualizar dados do cliente', response_description='Cliente atualizado com sucesso!')
+@router.patch(
+    '/{id}',
+    summary='Atualizar dados do cliente',
+    response_description='Cliente atualizado com sucesso!',
+)
 async def update_client_fields_route(id: int, contact_update: ContactUpdate):
     """
     Endpoint para atualizar campos específicos de um cliente de forma assíncrona.
-    
+
     Args:
         id: ID do cliente a ser atualizado
         contact_update: Dados para atualização
-        
+
     Returns:
         Confirmação da atualização
-        
+
     Raises:
         HTTPException: Se o cliente não for encontrado ou houver um erro na atualização
     """
-    logger.info(f"Recebida requisição para atualizar cliente ID {id}")
+    logger.info(f'Recebida requisição para atualizar cliente ID {id}')
 
     # Verificar se o cliente existe
     contact_info = await get_company_by_id(id)
 
     if not contact_info:
-        logger.warning(f"Cliente ID {id} não encontrado no Odoo")
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Cliente não encontrado no Odoo')
+        logger.warning(f'Cliente ID {id} não encontrado no Odoo')
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Cliente não encontrado no Odoo',
+        )
 
     # Preparar dados para atualização
     update_data = {
@@ -325,23 +344,25 @@ async def update_client_fields_route(id: int, contact_update: ContactUpdate):
         ),
     }
 
-    logger.info(f"Tentando atualizar cliente ID {id} com os seguintes valores: {update_data}")
+    logger.info(
+        f'Tentando atualizar cliente ID {id} com os seguintes valores: {update_data}'
+    )
 
     # Atualizar o cliente
     success = await update_contact_fields(id, contact_update)
 
     if not success:
-        logger.error(f"Falha ao atualizar cliente ID {id}")
+        logger.error(f'Falha ao atualizar cliente ID {id}')
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail='Falha ao atualizar o cliente',
         )
 
-    logger.info(f"Cliente ID {id} atualizado com sucesso")
+    logger.info(f'Cliente ID {id} atualizado com sucesso')
 
     # Buscar cliente atualizado para log
     updated_contact = await get_company_by_id(id)
-    logger.info(f"Dados após atualização: {updated_contact}")
+    logger.info(f'Dados após atualização: {updated_contact}')
 
     return {
         'message': 'Cliente atualizado com sucesso!',
