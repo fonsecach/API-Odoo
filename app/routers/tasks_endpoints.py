@@ -1,7 +1,7 @@
-# app/routers/tasks_endpoints.py
 import base64
 import logging
 from http import HTTPStatus
+
 
 from fastapi import (
     APIRouter,
@@ -12,6 +12,7 @@ from fastapi import (
     UploadFile,
 )
 
+from app.utils.utils import clean_vat
 from app.schemas.schemas import (
     TarefaCreate,
     TarefaUpdate,
@@ -24,6 +25,7 @@ from app.services.tasks_project_service import (
     create_task_attachment,
     get_task_by_id,
     get_task_by_project_and_id,
+    get_tasks_by_client_vat_in_projects,
     get_tasks_by_stage_name,
     get_tasks_info,
     transfer_task_messages,
@@ -457,4 +459,62 @@ async def transfer_task_messages_route(transfer_data: TaskMessageTransfer):
         'message': 'Mensagens transferidas com sucesso',
         'source_task_id': transfer_data.source_task_id,
         'target_task_id': transfer_data.target_task_id,
+    }
+
+
+@router.get(
+    '/by-vat/{vat}',
+    summary='Busca tarefas dos projetos 25 e 26 pelo CNPJ do cliente',
+    response_description='Lista de tarefas encontradas para o CNPJ informado'
+)
+async def get_tasks_by_client_vat(vat: str):
+    """
+    Endpoint para buscar tarefas nos projetos 25 e 26 filtrando pelo CNPJ do cliente.
+    
+    Args:
+        vat: CNPJ do cliente (será limpo automaticamente)
+        
+    Returns:
+        Lista de tarefas com informações detalhadas
+        
+    Raises:
+        HTTPException: Se o CNPJ for inválido ou nenhuma tarefa for encontrada
+    """
+    try:
+        cleaned_vat = clean_vat(vat)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=str(e)
+        )
+    
+    # Buscar tarefas usando o serviço
+    tasks = await get_tasks_by_client_vat_in_projects(cleaned_vat, [25, 26])
+    
+    if not tasks:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f'Nenhuma tarefa encontrada nos projetos 25 e 26 para o CNPJ {vat}'
+        )
+    
+
+    formatted_tasks = []
+    for task in tasks:
+        formatted_task = {
+            'id': task['id'],
+            'name': task['name'],
+            'partner_name': task.get('partner_id') and task['partner_id'][1] or 'Sem cliente',
+            'stage_name': task.get('stage_id') and task['stage_id'][1] or 'Sem estágio',
+            'project_name': task.get('project_id') and task['project_id'][1] or 'Sem projeto',
+            'x_studio_numero_do_perdcomp': task.get('x_studio_numero_do_perdcomp') or '',
+            'date_last_stage_update': task.get('date_last_stage_update') or '',
+            'write_date': task.get('write_date') or ''
+        }
+        formatted_tasks.append(formatted_task)
+    
+    return {
+        'vat': vat,
+        'projects_searched': [25, 26],
+        'total_tasks': len(formatted_tasks),
+        'tasks': formatted_tasks
     }

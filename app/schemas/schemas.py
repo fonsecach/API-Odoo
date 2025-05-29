@@ -365,10 +365,29 @@ class TaskMessageTransfer(BaseModel):
         description="ID da tarefa de destino que receberá as mensagens"
     )
 
+
+class TaskByVatInfo(BaseModel):
+    """Modelo para informações de tarefa na busca por CNPJ."""
+    id: int
+    name: str
+    partner_name: str
+    stage_name: str
+    project_name: str
+    x_studio_numero_do_perdcomp: str
+    date_last_stage_update: str
+    write_date: str
+    
+
+
+class TasksByVatResponse(BaseModel):
+    """Modelo de resposta para busca de tarefas por CNPJ."""
+    vat: str = Field(..., description="CNPJ pesquisado")
+    projects_searched: List[int] = Field(..., description="IDs dos projetos pesquisados")
+    total_tasks: int = Field(..., description="Total de tarefas encontradas")
+    tasks: List[TaskByVatInfo] = Field(..., description="Lista de tarefas encontradas")
+
 # ---------- helpdesk ----------------
 
-
-# Atualize este modelo no arquivo schemas.py
 
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator, model_validator

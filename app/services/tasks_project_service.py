@@ -380,3 +380,61 @@ async def update_task_stage(task_id: int, stage_id: int) -> bool:
     except Exception as e:
         logger.error(f'Erro ao atualizar estágio da tarefa: {e}')
         return False
+
+
+async def get_tasks_by_client_vat_in_projects(
+    vat: str, 
+    project_ids: List[int],
+    fields: Optional[List[str]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Busca tarefas em projetos específicos filtrando pelo CNPJ do cliente.
+    
+    Args:
+        vat: CNPJ do cliente (já limpo)
+        project_ids: Lista de IDs dos projetos para buscar
+        fields: Campos específicos a serem retornados
+        
+    Returns:
+        Lista de tarefas encontradas ou lista vazia
+    """
+    client = await get_odoo_client()
+    
+    if fields is None:
+        fields = ['id', 'name', 'partner_id', 'stage_id', 
+                  'project_id', 'x_studio_numero_do_perdcomp', 
+                  'date_last_stage_update',
+                  'write_date']
+    
+    try:
+        # Primeiro, buscar o(s) parceiro(s) com o CNPJ informado
+        partners = await client.search_read(
+            'res.partner',
+            [['vat', '=', vat]],
+            fields=['id']
+        )
+        
+        if not partners:
+            logger.warning(f'Nenhum parceiro encontrado com o CNPJ {vat}')
+            return []
+        
+        # Extrair os IDs dos parceiros encontrados
+        partner_ids = [partner['id'] for partner in partners]
+        
+        # Buscar tarefas nos projetos especificados que tenham esses parceiros
+        tasks = await client.search_read(
+            TASK_MODEL,
+            [
+                ['project_id', 'in', project_ids],
+                ['partner_id', 'in', partner_ids]
+            ],
+            fields=fields
+        )
+        
+        logger.info(f'Encontradas {len(tasks)} tarefas para o CNPJ {vat} nos projetos {project_ids}')
+        
+        return tasks
+        
+    except Exception as e:
+        logger.error(f'Erro ao buscar tarefas por CNPJ nos projetos: {e}')
+        return []
