@@ -305,3 +305,58 @@ async def get_or_create_partner(contact_name: str) -> Optional[int]:
     except Exception as e:
         logger.error(f'Erro ao buscar/criar cliente: {e}')
         return None
+
+
+async def get_or_create_partner_by_vat(
+    vat_number: str,
+    company_name: str,
+    default_phone: str = "N/A", # Default if not provided
+    default_email: str = "contato@empresa.com", # Default if not provided
+    default_country_id: int = 31,  # Brazil
+    default_company_type: int = 0  # 0 for Company
+) -> Optional[int]:
+    """
+    Obtém o ID de um parceiro (empresa) pelo VAT. Se não existir, cria um novo.
+    Args:
+        vat_number: O número do VAT (CNPJ) da empresa.
+        company_name: O nome da empresa, usado se uma nova empresa for criada.
+        default_phone: Telefone padrão para novas empresas.
+        default_email: Email padrão para novas empresas.
+        default_country_id: ID do país padrão para novas empresas.
+        default_company_type: Tipo de empresa padrão.
+    Returns:
+        O ID do parceiro (empresa) ou None se a criação falhar.
+    """
+    client = await get_odoo_client()
+    
+    try:
+        cleaned_vat = clean_vat(vat_number)
+    except ValueError as e:
+        logger.error(f"VAT inválido fornecido: {vat_number}. Erro: {str(e)}")
+        raise
+
+    existing_companies = await get_company_by_vat(cleaned_vat, fields=['id', 'name'])
+
+    if existing_companies:
+        company_id = existing_companies[0]['id']
+        logger.info(f"Empresa com VAT {cleaned_vat} (Nome: {existing_companies[0]['name']}) já existe com ID: {company_id}.")
+        return company_id
+    else:
+        logger.info(f"Empresa com VAT {cleaned_vat} não encontrada. Tentando criar nova empresa: {company_name}.")
+        company_data_to_create = CompanyDefault(
+            name=company_name,
+            vat=cleaned_vat,
+            phone=default_phone,
+            email=default_email,
+            country_id=default_country_id,
+            company_type=default_company_type
+        )
+        
+        new_company_id = await create_company(company_data_to_create) # create_company is already async
+        
+        if new_company_id:
+            logger.info(f"Nova empresa '{company_name}' (VAT: {cleaned_vat}) criada com sucesso. ID: {new_company_id}.")
+            return new_company_id
+        else:
+            logger.error(f"Falha ao criar nova empresa '{company_name}' (VAT: {cleaned_vat}) no Odoo.")
+            return None

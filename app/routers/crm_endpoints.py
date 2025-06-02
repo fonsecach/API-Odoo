@@ -1,5 +1,6 @@
 import base64
 import json
+import logging # Adicionado
 from http import HTTPStatus
 from typing import List
 
@@ -16,23 +17,26 @@ from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
 from app.schemas.schemas import (
     AttachmentInfo,
     OpportunityCreate,
+    OpportunityCreateIntelligent,
     OpportunityCreateResponse,
     OpportunityDefault,
     OpportunityReturn,
 )
 from app.services.authentication import authenticate_odoo, connect_to_odoo
-from app.services.company_service import get_or_create_partner
+from app.services.company_service import get_or_create_partner 
 from app.services.crm_service import (
     create_opportunity_in_crm,
+    create_opportunity_intelligent_async,
     fetch_opportunity_by_id,
     get_opportunities_info,
 )
 
+logger = logging.getLogger(__name__) 
 router = APIRouter(prefix='/opportunities', tags=['Oportunidades'])
 
 
 @router.get('/', summary='Lista oportunidades cadastradas')
-async def list_opportunities(limit: int = 100, offset: int = 0):
+async def list_opportunities_endpoint(limit: int = 100, offset: int = 0):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
 
@@ -56,7 +60,7 @@ async def list_opportunities(limit: int = 100, offset: int = 0):
 
 
 @router.get('/{opportunity_id}', summary='Oportunidade pelo ID')
-async def get_opportunity_by_id(opportunity_id: int):
+async def get_opportunity_by_id_endpoint(opportunity_id: int):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
     if not uid:
@@ -77,11 +81,11 @@ async def get_opportunity_by_id(opportunity_id: int):
 
 @router.post(
     '/v1/',
-    summary='Cadastrar uma oportunidade',
+    summary='Cadastrar uma oportunidade (v1)',
     status_code=status.HTTP_201_CREATED,
     response_model=OpportunityReturn,
 )
-async def create_opportunity(opportunity_info: OpportunityDefault):
+async def create_opportunity_v1_endpoint(opportunity_info: OpportunityDefault):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
 
@@ -91,8 +95,7 @@ async def create_opportunity(opportunity_info: OpportunityDefault):
             detail='Falha na autenticação no Odoo',
         )
 
-    # 🔹 Passo 1: Criar cliente a partir do contato
-    partner_id = get_or_create_partner(
+    partner_id = get_or_create_partner( 
         opportunity_info.contact_name, models, ODOO_DB, uid, ODOO_PASSWORD
     )
 
@@ -102,14 +105,13 @@ async def create_opportunity(opportunity_info: OpportunityDefault):
             detail='Erro ao criar ou recuperar o cliente',
         )
 
-    # 🔹 Passo 2: Criar oportunidade no CRM
     opportunity_data = opportunity_info.dict(exclude_unset=True)
     opportunity_data.update({
-        'partner_id': partner_id,  # Associar cliente
-        'type': 'opportunity',  # Definir como oportunidade (não lead)
+        'partner_id': partner_id,
+        'type': 'opportunity',
     })
 
-    opportunity_id = create_opportunity_in_crm(
+    opportunity_id = create_opportunity_in_crm( 
         opportunity_data, models, ODOO_DB, uid, ODOO_PASSWORD
     )
 
@@ -124,11 +126,11 @@ async def create_opportunity(opportunity_info: OpportunityDefault):
 
 @router.post(
     '/v2',
-    summary='Cadastrar uma oportunidade',
+    summary='Cadastrar uma oportunidade (v2)',
     status_code=status.HTTP_201_CREATED,
     response_model=OpportunityReturn,
 )
-async def create_opportunity(opportunity_info: OpportunityDefault):
+async def create_opportunity_v2_endpoint(opportunity_info: OpportunityDefault):
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
 
@@ -138,7 +140,6 @@ async def create_opportunity(opportunity_info: OpportunityDefault):
             detail='Falha na autenticação no Odoo',
         )
 
-    # 🔹 Utilizar cliente já existente
     partner_id = opportunity_info.partner_id
 
     if not partner_id:
@@ -147,7 +148,6 @@ async def create_opportunity(opportunity_info: OpportunityDefault):
             detail='ID do cliente não informado',
         )
 
-    # 🔹 Criar oportunidade no CRM
     opportunity_data = opportunity_info.dict(exclude_unset=True)
     opportunity_data.update({
         'partner_id': partner_id,
@@ -155,10 +155,11 @@ async def create_opportunity(opportunity_info: OpportunityDefault):
     })
 
     try:
-        opportunity_id = create_opportunity_in_crm(
+        opportunity_id = create_opportunity_in_crm( 
             opportunity_data, models, ODOO_DB, uid, ODOO_PASSWORD
         )
     except Exception as e:
+        logger.exception(f"Erro ao criar oportunidade (v2) para {opportunity_info.name}") # Logging melhorado
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f'Erro ao criar oportunidade: {str(e)}',
@@ -167,54 +168,38 @@ async def create_opportunity(opportunity_info: OpportunityDefault):
     return {'opportunity_id': opportunity_id, **opportunity_data}
 
 
-# para teste de criar oportunidade com anexo
-
-
 @router.post(
-    '/opportunities/',
+    '/with_attachment/', 
     summary='Cria uma nova oportunidade com anexo',
     response_description='Oportunidade criada com sucesso',
     response_model=OpportunityCreateResponse,
     status_code=HTTPStatus.CREATED,
 )
-async def create_opportunity_with_attachment(
+async def create_opportunity_with_attachment_endpoint(
     opportunity_data: str = Form(...),
     files: List[UploadFile] = File(...),
 ):
-    """
-    Cria uma nova oportunidade no Odoo e anexa um ou mais documentos a ela.
-
-    Args:
-        opportunity_data: Dados da oportunidade em formato JSON string
-        files: Lista de arquivos a serem anexados à oportunidade
-
-    Returns:
-        Detalhes da oportunidade criada e dos anexos
-    """
     try:
-        # Converter a string JSON para um dicionário
         opportunity_dict = json.loads(opportunity_data)
-        # Validar usando o modelo Pydantic
         opportunity = OpportunityCreate(**opportunity_dict)
     except json.JSONDecodeError:
+        logger.error("Formato JSON inválido para dados da oportunidade com anexo.")
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail='Formato JSON inválido para os dados da oportunidade',
         )
     except Exception as e:
+        logger.exception("Dados da oportunidade com anexo inválidos.")
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f'Dados da oportunidade inválidos: {str(e)}',
         )
 
-    # Preparar dados para o Odoo
-    opportunity_data = opportunity.dict(exclude_none=True)
+    opportunity_data_for_odoo = opportunity.dict(exclude_none=True)
 
-    # Converter tags para o formato esperado pelo Odoo (se existirem)
-    if opportunity_data.get('tag_ids'):
-        opportunity_data['tag_ids'] = [(6, 0, opportunity_data['tag_ids'])]
+    if opportunity_data_for_odoo.get('tag_ids'):
+        opportunity_data_for_odoo['tag_ids'] = [(6, 0, opportunity_data_for_odoo['tag_ids'])]
 
-    # Conectar ao Odoo
     common, models = connect_to_odoo(ODOO_URL)
     uid = authenticate_odoo(common, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
     if not uid:
@@ -224,36 +209,32 @@ async def create_opportunity_with_attachment(
         )
 
     try:
-        # Criar a oportunidade no Odoo
         opportunity_id = models.execute_kw(
             ODOO_DB,
             uid,
             ODOO_PASSWORD,
-            'crm.lead',  # Modelo de oportunidade no Odoo
+            'crm.lead', 
             'create',
-            [opportunity_data],
+            [opportunity_data_for_odoo],
         )
 
-        # Se não conseguiu criar a oportunidade, levanta exceção
         if not opportunity_id:
+            logger.error("Não foi possível criar a oportunidade (com anexo) no Odoo.")
             raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
+                status_code=HTTPStatus.BAD_REQUEST, 
                 detail='Não foi possível criar a oportunidade',
             )
 
         attachments = []
-        # Processar cada arquivo enviado
-        for file in files:
-            # Ler e codificar o arquivo em base64
-            file_content = await file.read()
+        for file_upload in files:
+            file_content = await file_upload.read()
             encoded_content = base64.b64encode(file_content).decode('utf-8')
 
-            # Criar anexo no Odoo vinculado à oportunidade
             attachment_data = {
-                'name': file.filename,
+                'name': file_upload.filename,
                 'datas': encoded_content,
-                'res_model': 'crm.lead',  # Modelo da oportunidade
-                'res_id': opportunity_id,  # ID da oportunidade criada
+                'res_model': 'crm.lead',
+                'res_id': opportunity_id,
             }
 
             attachment_id = models.execute_kw(
@@ -268,39 +249,43 @@ async def create_opportunity_with_attachment(
             attachments.append(
                 AttachmentInfo(
                     attachment_id=attachment_id,
-                    filename=file.filename,
+                    filename=file_upload.filename,
                 )
             )
-
-        # Obter detalhes da oportunidade criada
-        opportunity_details = models.execute_kw(
+        fields_to_read_for_response = [
+            'name', 'partner_id', 'expected_revenue', 'stage_id', 
+            'probability', 'company_id', 'user_id', 'team_id', 'x_studio_tese' # Adicione os campos faltantes
+        ]
+        opportunity_details_raw = models.execute_kw(
             ODOO_DB,
             uid,
             ODOO_PASSWORD,
             'crm.lead',
             'read',
             [opportunity_id],
-            {
-                'fields': [
-                    'name',
-                    'partner_id',
-                    'expected_revenue',
-                    'stage_id',
-                    'probability',
-                    'company_id',
-                ]
-            },
-        )[0]
+            {'fields': fields_to_read_for_response},
+        )
+        
+        if not opportunity_details_raw:
+            logger.error(f"Falha ao ler detalhes da oportunidade {opportunity_id} recém-criada com anexo.")
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Falha ao ler oportunidade após criação.")
 
-        # Converter para o modelo de retorno
+        opportunity_details = opportunity_details_raw[0]
+
+        def get_id_from_relational(field_value):
+            if isinstance(field_value, list) and field_value:
+                return field_value[0]
+            return field_value
+
         opp_return = OpportunityReturn(
             opportunity_id=opportunity_id,
-            name=opportunity_details['name'],
-            partner_id=opportunity_details['partner_id'],
-            expected_revenue=opportunity_details['expected_revenue'],
-            probability=opportunity_details.get('probability'),
-            stage_id=opportunity_details['stage_id'],
-            company_id=opportunity_details.get('company_id'),
+            name=opportunity_details.get('name'),
+            partner_id=get_id_from_relational(opportunity_details.get('partner_id')),
+            expected_revenue=opportunity_details.get('expected_revenue'),
+            stage_id=get_id_from_relational(opportunity_details.get('stage_id')),
+            user_id=get_id_from_relational(opportunity_details.get('user_id')),
+            team_id=get_id_from_relational(opportunity_details.get('team_id')),
+            x_studio_tese=opportunity_details.get('x_studio_tese') if opportunity_details.get('x_studio_tese') is not False else None,
         )
 
         return OpportunityCreateResponse(
@@ -311,7 +296,51 @@ async def create_opportunity_with_attachment(
         )
 
     except Exception as e:
+        logger.exception(f"Erro ao criar oportunidade com anexo para {opportunity.name if 'opportunity' in locals() else 'N/A'}")
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f'Erro ao criar oportunidade com anexo: {str(e)}',
+        )
+
+@router.post(
+    "/v3/", 
+    summary="Cadastrar uma oportunidade com verificação/criação inteligente de empresa",
+    status_code=status.HTTP_201_CREATED,
+    response_model=OpportunityReturn, 
+)
+async def create_opportunity_intelligent_endpoint(
+    opportunity_payload: OpportunityCreateIntelligent,
+):
+    """
+    Endpoint para criar uma nova oportunidade.
+    - Verifica se a empresa (cliente) já existe pelo CNPJ.
+    - Se não existir, cadastra a empresa.
+    - Em seguida, cadastra a oportunidade vinculada à empresa.
+    """
+    try:
+        created_opportunity_dict = await create_opportunity_intelligent_async(opportunity_payload)
+        
+        if not created_opportunity_dict:
+            logger.warning(f"A criação inteligente para '{opportunity_payload.name}' não retornou detalhes.")
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Não foi possível criar a oportunidade ou obter seus detalhes."
+            )
+        
+        return OpportunityReturn(**created_opportunity_dict)
+
+    except HTTPException as http_exc:
+        # Log detalhado da HTTPException vinda do serviço ou de validações anteriores
+        logger.error(f"HTTPException na criação inteligente (/v3/) para '{opportunity_payload.name}': {http_exc.detail}", exc_info=getattr(http_exc, '__cause__', None))
+        raise http_exc
+    except ValueError as ve: 
+        # ValueErrors podem vir, por exemplo, da limpeza do VAT se não tratados antes
+        logger.error(f"ValueError na criação inteligente (/v3/) para '{opportunity_payload.name}': {str(ve)}", exc_info=True)
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        # Erro genérico e inesperado
+        logger.exception(f"Erro inesperado na criação inteligente (/v3/) para '{opportunity_payload.name}': {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Ocorreu um erro inesperado ao processar sua solicitação: {str(e)}"
         )
