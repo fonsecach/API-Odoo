@@ -46,7 +46,7 @@ async def check_and_report_stale_opportunities():
             ('stage_id', 'in', [8, 9]),
             ('write_date', '<=', cutoff_str_utc),
         ]
-        fields = ['id', 'name', 'partner_id', 'user_id', 'team_id']
+        fields = ['id', 'name', 'user_id', 'team_id', 'write_date']
         
         opportunities = await client.search_read('crm.lead', domain, fields=fields)
 
@@ -58,12 +58,27 @@ async def check_and_report_stale_opportunities():
 
         processed_data = []
         for opp in opportunities:
+            # Lógica para formatar a data
+            write_date_str = opp.get('write_date')
+            formatted_date = 'N/A'
+            if write_date_str:
+                try:
+                    # Converte a string da data para um objeto datetime
+                    dt_object = datetime.strptime(write_date_str, '%Y-%m-%d %H:%M:%S')
+                    # Formata o objeto datetime para o padrão DD/MM/YYYY
+                    formatted_date = dt_object.strftime('%d/%m/%Y %H:%M:%S')
+                except (ValueError, TypeError):
+                    # Se a data não vier no formato esperado, mantém o valor original
+                    logger.warning(f"Não foi possível formatar a data '{write_date_str}' para a oportunidade ID {opp.get('id')}.")
+                    formatted_date = write_date_str
+
+            # Dados atualizados para o relatório
             processed_data.append({
                 'ID da Oportunidade': opp.get('id'),
                 'Nome': opp.get('name', 'N/A'),
-                'Cliente': opp.get('partner_id')[1] if opp.get('partner_id') else 'N/A',
                 'Vendedor': opp.get('user_id')[1] if opp.get('user_id') else 'N/A',
                 'Equipe de Vendas': opp.get('team_id')[1] if opp.get('team_id') else 'N/A',
+                'Data da Última Atualização': formatted_date, # Usa a data formatada
             })
         
         df = pd.DataFrame(processed_data)
@@ -72,13 +87,13 @@ async def check_and_report_stale_opportunities():
         with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Oportunidades Estagnadas')
         excel_buffer.seek(0)
-        # todo Substituir 'cleiton.fonseca@tributojusto.com.br' por seu endereço de e-mail
+        
+        # Envia o relatório por e-mail
         email_data = {
-            'to': 'marcio.faria@tributojusto.com.br',
-            # 'to': 'bruna.veiga@tributojusto.com.br',
-            'subject': 'TESTE | Relatório de 72 horas CRM/Odoo',
-            'template_name': 'welcome_email.html',
-            'body_json': json.dumps({"name": "Marcio"}),
+            'to': 'bruna.veiga@tributojusto.com.br',
+            'subject': 'Relatório de 72 horas CRM/Odoo',
+            'template_name': 'relatorio_crm.html',
+            'body_json': json.dumps({"name": "Bruna"}),
         }
         
         files = {

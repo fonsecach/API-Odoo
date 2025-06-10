@@ -1,8 +1,10 @@
+# app/main.py
+
 import logging
 import os
 from contextlib import asynccontextmanager
-from sched import scheduler
 
+# Removido: from sched import scheduler
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -28,6 +30,8 @@ from app.services.stale_opportunities_service import check_and_report_stale_oppo
 
 is_production = os.getenv('ENVIRONMENT', 'development').lower() == 'production'
 
+# CORREÇÃO: Instanciando o agendador corretamente
+scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,17 +43,19 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(
         check_and_report_stale_opportunities,
         'cron',
-        day_of_week='mon-fri',  # De segunda a sexta
-        hour=8,
-        minute=0,
+        day_of_week='mon-fri',
+        hour=8, # Ajuste o horário conforme necessário
+        minute=15,
         timezone=pytz.timezone('America/Sao_Paulo'),
         id="report_stale_opportunities_job",
         replace_existing=True
     )
     scheduler.start()
     logger.info("Agendador iniciado com sucesso.")
+    
     yield
-    #    # Shutdown: liberar recursos
+    
+    # Shutdown: liberar recursos
     logger.info("Desligando agendador...")
     scheduler.shutdown()
     logger.info("Agendador desligado.")
@@ -58,7 +64,9 @@ async def lifespan(app: FastAPI):
         client.close()
 
 
+# CORREÇÃO: Passando a função 'lifespan' para o FastAPI
 app = FastAPI(
+    lifespan=lifespan,
     title='API Odoo',
     description='API para integração com o ERP do Odoo',
     version='0.1.0',
@@ -76,6 +84,7 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
+# Inclusão dos routers
 app.include_router(company_router)
 app.include_router(crm_router)
 app.include_router(tasks_router)
