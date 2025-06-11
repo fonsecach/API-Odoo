@@ -310,8 +310,8 @@ async def get_or_create_partner(contact_name: str) -> Optional[int]:
 async def get_or_create_partner_by_vat(
     vat_number: str,
     company_name: str,
-    default_phone: str = "N/A", # Default if not provided
-    default_email: str = "contato@empresa.com", # Default if not provided
+    default_phone: str = "N/A",  # Default if not provided
+    default_email: str = "contato@empresa.com",  # Default if not provided
     default_country_id: int = 31,  # Brazil
     default_company_type: int = 0  # 0 for Company
 ) -> Optional[int]:
@@ -328,7 +328,7 @@ async def get_or_create_partner_by_vat(
         O ID do parceiro (empresa) ou None se a criação falhar.
     """
     client = await get_odoo_client()
-    
+
     try:
         cleaned_vat = clean_vat(vat_number)
     except ValueError as e:
@@ -351,9 +351,9 @@ async def get_or_create_partner_by_vat(
             country_id=default_country_id,
             company_type=default_company_type
         )
-        
-        new_company_id = await create_company(company_data_to_create) # create_company is already async
-        
+
+        new_company_id = await create_company(company_data_to_create)  # create_company is already async
+
         if new_company_id:
             logger.info(f"Nova empresa '{company_name}' (VAT: {cleaned_vat}) criada com sucesso. ID: {new_company_id}.")
             return new_company_id

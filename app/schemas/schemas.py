@@ -239,20 +239,20 @@ class OpportunityCreateIntelligent(BaseModel):
     user_id: int = Field(..., description="ID do vendedor responsável")
     company_name: str = Field(..., description="Nome da empresa/cliente")
     company_vat: str = Field(..., description="CNPJ da empresa/cliente. Serão considerados apenas os dígitos.")
-    
+
     team_id: Optional[int] = Field(None, description="ID da equipe de vendas (opcional, Odoo pode usar um padrão)")
     stage_id: Optional[int] = Field(None, description="ID do estágio inicial da oportunidade (opcional, Odoo pode usar um padrão)")
     x_studio_tese: Optional[str] = Field(None, description="Tese da oportunidade (campo customizado)")
     expected_revenue: Optional[float] = Field(None, description="Receita esperada")
 
     class Config:
-        extra = 'allow' 
+        extra = 'allow'
         schema_extra = {
             "example": {
-                "name": "L G M - COMERCIO DE ALUMINIOS LTDA | 07.383.820/0001-59", # Seu exemplo
-                "user_id": 75, # Seu exemplo
-                "company_name": "L G M - COMERCIO DE ALUMINIOS LTDA", # Seu exemplo
-                "company_vat": "07.383.820/0001-59", # Seu exemplo
+                "name": "L G M - COMERCIO DE ALUMINIOS LTDA | 07.383.820/0001-59",  # Seu exemplo
+                "user_id": 75,  # Seu exemplo
+                "company_name": "L G M - COMERCIO DE ALUMINIOS LTDA",  # Seu exemplo
+                "company_vat": "07.383.820/0001-59",  # Seu exemplo
                 # team_id e stage_id agora podem ser omitidos na requisição
             }
         }

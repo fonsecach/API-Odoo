@@ -377,7 +377,7 @@ async def get_helpdesk_tickets_by_vat_and_team(
             fields=fields_to_fetch,
             limit=limit,
             offset=offset,
-            order='create_date desc',  # Optional: order by creation date
+            order='create_date desc',
         )
 
         formatted_tickets = []
@@ -391,7 +391,7 @@ async def get_helpdesk_tickets_by_vat_and_team(
                 client_name = ticket['partner_id'][1]
             elif ticket.get('partner_id') and isinstance(
                 ticket.get('partner_id'), str
-            ):  # Fallback if only name string is returned
+            ): 
                 client_name = ticket.get('partner_id')
 
             stage_name = None

@@ -17,6 +17,11 @@ dependencies = [
     "scalar-fastapi>=1.0.3",
     "twisted>=24.10.0",
     "numpy>=2.2.4",
+    "pandas>=2.3.0",
+    "openpyxl>=3.1.5",
+    "pytz>=2025.2",
+    "httpx>=0.28.1",
+    "apscheduler>=3.11.0",
 ]
 
 [tool.ruff]

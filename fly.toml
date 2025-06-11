@@ -1,0 +1,21 @@
+app = "api-odoo-crimson-leaf-5581"
+primary_region = "iad"
+
+[deploy]
+strategy = "rolling"
+
+[http_service]
+auto_start_machines = true
+auto_stop_machines = false
+force_https = true
+internal_port = 8001
+min_machines_running = 1
+processes = [ "app" ]
+
+[processes]
+app = "/app/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8001"
+
+[[vm]]
+cpu_kind = "shared"
+cpus = 1
+memory = "256mb"

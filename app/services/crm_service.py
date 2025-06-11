@@ -1,20 +1,20 @@
-# Conteúdo para app/services/crm_service.py
 
 import logging
 from http import HTTPStatus
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from fastapi import HTTPException
 
-# Importa a classe AsyncOdooClient
-from app.services.async_odoo_client import AsyncOdooClient 
 # Importa as configurações de conexão do Odoo
-from app.config.settings import ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD 
+from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
+from app.schemas.schemas import OpportunityCreateIntelligent
 
-from app.schemas.schemas import OpportunityCreateIntelligent, OpportunityReturn
+# Importa a classe AsyncOdooClient
+from app.services.async_odoo_client import AsyncOdooClient
 from app.services.company_service import get_or_create_partner_by_vat
 
-logger = logging.getLogger(__name__) # Mantenha apenas uma atribuição para o logger
+logger = logging.getLogger(__name__)  # Mantenha apenas uma atribuição para o logger
+
 
 # Definição da função get_odoo_client que estava faltando neste arquivo
 async def get_odoo_client() -> AsyncOdooClient:
@@ -25,6 +25,7 @@ async def get_odoo_client() -> AsyncOdooClient:
     return await AsyncOdooClient.get_instance(
         ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD
     )
+
 
 # --- Funções síncronas existentes ---
 def get_opportunities_info(models, db, uid, password, limit=100, offset=0):
@@ -69,6 +70,7 @@ def create_opportunity_in_crm(opportunity_info, models, db, uid, password):
             detail=f'Erro ao criar oportunidade: {str(e)}',
         )
 
+
 # --- Função assíncrona para criação inteligente ---
 async def create_opportunity_intelligent_async(
     opportunity_payload: OpportunityCreateIntelligent
@@ -85,7 +87,7 @@ async def create_opportunity_intelligent_async(
         HTTPException: Em caso de erros específicos (ex: falha ao obter/criar parceiro, erro no Odoo).
     """
     # Agora esta chamada funcionará, pois get_odoo_client() está definido acima neste arquivo.
-    odoo_async_client = await get_odoo_client() 
+    odoo_async_client = await get_odoo_client()
 
     # Passo 1: Obter ou criar o parceiro (empresa)
     try:
@@ -93,21 +95,20 @@ async def create_opportunity_intelligent_async(
             vat_number=opportunity_payload.company_vat,
             company_name=opportunity_payload.company_name
         )
-    except ValueError as ve: # Erro de validação do VAT (ex: CNPJ inválido)
+    except ValueError as ve:  # Erro de validação do VAT (ex: CNPJ inválido)
         logger.error(f"ValueError ao obter/criar parceiro para VAT {opportunity_payload.company_vat}: {str(ve)}")
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(ve))
-    except Exception as e_partner: # Outros erros ao obter/criar parceiro
+    except Exception as e_partner:  # Outros erros ao obter/criar parceiro
         logger.exception(f"Erro inesperado ao obter/criar parceiro para VAT {opportunity_payload.company_vat}")
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f"Erro ao processar dados da empresa: {str(e_partner)}"
         )
 
-
-    if not partner_id: # Se get_or_create_partner_by_vat retornar None (apesar de agora levantar exceção)
+    if not partner_id:  # Se get_or_create_partner_by_vat retornar None (apesar de agora levantar exceção)
         logger.error(f"Não foi possível obter ou criar o parceiro (ID nulo retornado) para VAT {opportunity_payload.company_vat} e nome {opportunity_payload.company_name}.")
         raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, # Ou 500 se for uma falha inesperada do serviço de empresa
+            status_code=HTTPStatus.BAD_REQUEST,  # Ou 500 se for uma falha inesperada do serviço de empresa
             detail=f"Falha ao processar dados da empresa para VAT: {opportunity_payload.company_vat}"
         )
 
@@ -116,8 +117,8 @@ async def create_opportunity_intelligent_async(
         'name': opportunity_payload.name,
         'partner_id': partner_id,
         'user_id': opportunity_payload.user_id,
-        'team_id': opportunity_payload.team_id, # Se opcional e None, será removido abaixo
-        'stage_id': opportunity_payload.stage_id, # Se opcional e None, será removido abaixo
+        'team_id': opportunity_payload.team_id,  # Se opcional e None, será removido abaixo
+        'stage_id': opportunity_payload.stage_id,  # Se opcional e None, será removido abaixo
         'type': 'opportunity',
         # Odoo pode interpretar False como "não definido" ou um valor booleano literal.
         # Se o campo x_studio_tese for um campo de texto, enviar False pode não ser o ideal.
@@ -128,18 +129,17 @@ async def create_opportunity_intelligent_async(
     # Remove chaves com valor None para que Odoo use seus padrões, se houver.
     opportunity_data_odoo = {k: v for k, v in opportunity_data_odoo.items() if v is not None}
 
-
     # Passo 3: Criar a oportunidade no CRM usando AsyncOdooClient
     try:
         opportunity_id = await odoo_async_client.create('crm.lead', opportunity_data_odoo)
-        
-        if not opportunity_id: # Checagem caso o Odoo retorne algo falsy sem erro
+
+        if not opportunity_id:  # Checagem caso o Odoo retorne algo falsy sem erro
             logger.error(f"Falha ao criar oportunidade '{opportunity_payload.name}' no Odoo (nenhum ID retornado).")
             raise HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                 detail="O Odoo não retornou um ID para a oportunidade criada."
             )
-        
+
         logger.info(f"Oportunidade '{opportunity_payload.name}' criada com sucesso, ID: {opportunity_id}.")
 
         # Passo 4: Ler os dados da oportunidade criada para retornar
@@ -159,7 +159,7 @@ async def create_opportunity_intelligent_async(
             )
 
         details = created_opportunity_data_list[0]
-        
+
         # Função auxiliar para extrair ID de campos relacionais [ID, "Nome"] ou retornar o valor se já for ID
         def get_id_from_relational(field_value, fallback_id=None):
             if isinstance(field_value, list) and field_value:
@@ -169,11 +169,10 @@ async def create_opportunity_intelligent_async(
             # ou deixar como None se o schema de retorno permitir.
             return fallback_id if field_value is False or field_value is None else field_value
 
-
         return_data = {
             "opportunity_id": opportunity_id,
             "name": details.get('name'),
-            "partner_id": get_id_from_relational(details.get('partner_id'), partner_id), # partner_id é o ID que já temos
+            "partner_id": get_id_from_relational(details.get('partner_id'), partner_id),  # partner_id é o ID que já temos
             "x_studio_tese": details.get('x_studio_tese') if details.get('x_studio_tese') is not False else None,
             "user_id": get_id_from_relational(details.get('user_id'), opportunity_payload.user_id),
             "team_id": get_id_from_relational(details.get('team_id'), opportunity_payload.team_id),
@@ -182,12 +181,11 @@ async def create_opportunity_intelligent_async(
         }
         return return_data
 
-    except HTTPException: # Re-levanta HTTPExceptions já tratadas (ex: de get_or_create_partner_by_vat)
+    except HTTPException:  # Re-levanta HTTPExceptions já tratadas (ex: de get_or_create_partner_by_vat)
         raise
-    except Exception as e: # Captura outras exceções da interação com Odoo (create, search_read)
+    except Exception as e:  # Captura outras exceções da interação com Odoo (create, search_read)
         logger.exception(f"Exceção ao interagir com Odoo para oportunidade '{opportunity_payload.name}'")
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f"Erro ao interagir com o Odoo para criar/ler oportunidade: {str(e)}"
         )
-        

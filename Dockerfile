@@ -11,4 +11,6 @@ RUN uv sync --frozen --no-cache
 
 ENV ENVIRONMENT=production
 
-CMD ["/app/.venv/bin/fastapi", "run", "app/main.py", "--port", "80", "--host", "0.0.0.0"]
+EXPOSE 8001
+
+CMD ["/app/.venv/bin/fastapi", "run", "app/main.py", "--port", "8001", "--host", "0.0.0.0"]
