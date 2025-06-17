@@ -317,14 +317,14 @@ router = APIRouter(prefix='/tickets', tags=['Central de Ajuda'])
 
 
 @router.get(
-    '/client-vat/{vat}/team/1',
+    '/client-vat/{vat:path}/team/1',
     summary='Lista chamados de um cliente (por CNPJ/VAT) na equipe de Helpdesk 1',
     response_model=HelpdeskTicketsByVatResponse
 )
 async def list_tickets_by_vat_for_team_1(
     vat: str,
     limit: int = Query(
-        100, description='Limite de registros a serem retornados'
+        1000, description='Limite de registros a serem retornados'
     ),
     offset: int = Query(0, description='Deslocamento para paginação'),
 ):
@@ -351,18 +351,18 @@ async def list_tickets_by_vat_for_team_1(
 
         if (
             not tickets
-        ):  # tickets will be an empty list if none are found by the service
+        ):  
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
-                detail=f'Nenhum chamado encontrado para o VAT {vat} na equipe {team_id_fixed}',
+                detail=f'Nenhum chamado encontrado para o CPF/CNPJ {vat} na equipe {team_id_fixed}',
             )
         return {'chamados': tickets}
-    except ValueError as e:  # Catch VAT validation errors specifically
+    except ValueError as e:
         logger.error(f"Erro de valor ao buscar chamados por VAT '{vat}': {e}")
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
     except (
         HTTPException
-    ):  # Re-raise HTTPExceptions that might come from deeper calls if any
+    ):  
         raise
     except Exception as e:
         logger.error(

@@ -445,6 +445,7 @@ class HelpdeskTicketByVat(BaseModel):
     name: Optional[str] = None
     client_name: Optional[str] = None
     stage_name: Optional[str] = None
+    responsible_name: Optional[str] = None
     write_date: Optional[datetime] = None
     date_last_stage_update: Optional[datetime] = None
     model_config = ConfigDict(extra='ignore')

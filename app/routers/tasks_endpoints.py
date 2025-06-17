@@ -1,6 +1,7 @@
 import base64
 import logging
 from http import HTTPStatus
+from typing import Any, Dict
 
 from fastapi import (
     APIRouter,
@@ -18,6 +19,7 @@ from fastapi import (
 #     # TaskSaleOrderUpdate,
 #     # TaskStageUpdate,
 # )
+from app.services import tasks_project_service
 from app.services.tasks_project_service import (
     get_tasks_by_client_vat_in_projects,
 )
@@ -454,64 +456,92 @@ router = APIRouter(prefix='/projects', tags=['Projetos'])
 #     }
 
 
+# app/routers/tasks_endpoints.py
+
+# ... outras importações ...
+# Adicione esta importação para podermos usar o cliente Odoo aqui
+from app.services.tasks_project_service import get_odoo_client 
+from app.utils.utils import clean_vat
+
+# ...
+
 @router.get(
-    '/by-vat/{vat}',
-    summary='Busca tarefas dos projetos 25 e 26 pelo CNPJ do cliente',
-    response_description='Lista de tarefas encontradas para o CNPJ informado',
+    '/by-vat/{vat:path}',
+    summary='Busca tarefas por CNPJ do cliente nos projetos 25 e 26',
+    description='Retorna uma lista de tarefas associadas a um cliente (por CNPJ/VAT) nos projetos com ID 25 e 26.',
+    response_model=Dict[str, Any],
 )
 async def get_tasks_by_client_vat(vat: str):
     """
-    Endpoint para buscar tarefas nos projetos 25 e 26 filtrando pelo CNPJ do cliente.
-
-    Args:
-        vat: CNPJ do cliente (será limpo automaticamente)
-
-    Returns:
-        Lista de tarefas com informações detalhadas
-
-    Raises:
-        HTTPException: Se o CNPJ for inválido ou nenhuma tarefa for encontrada
+    Endpoint para obter tarefas de um cliente por CNPJ/VAT em projetos específicos.
+    A lógica para buscar nomes de responsáveis foi otimizada.
     """
     try:
+
         cleaned_vat = clean_vat(vat)
-    except ValueError as e:
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
-
-    # Buscar tarefas usando o serviço
-    tasks = await get_tasks_by_client_vat_in_projects(cleaned_vat, [25, 26])
-
-    if not tasks:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail=f'Nenhuma tarefa encontrada nos projetos 25 e 26 para o CNPJ {vat}',
+        project_ids = [25, 26]
+        
+        tasks = await tasks_project_service.get_tasks_by_client_vat_in_projects(
+            cleaned_vat, project_ids
         )
 
-    formatted_tasks = []
-    for task in tasks:
-        formatted_task = {
-            'id': task['id'],
-            'name': task['name'],
-            'partner_name': task.get('partner_id')
-            and task['partner_id'][1]
-            or 'Sem cliente',
-            'stage_name': task.get('stage_id')
-            and task['stage_id'][1]
-            or 'Sem estágio',
-            'project_name': task.get('project_id')
-            and task['project_id'][1]
-            or 'Sem projeto',
-            'x_studio_numero_do_perdcomp': task.get(
-                'x_studio_numero_do_perdcomp'
-            )
-            or '',
-            'date_last_stage_update': task.get('date_last_stage_update') or '',
-            'write_date': task.get('write_date') or '',
-        }
-        formatted_tasks.append(formatted_task)
+        if not tasks:
+            return {
+                'vat': vat,
+                'projects_searched': project_ids,
+                'total_tasks': 0,
+                'tasks': [],
+            }
 
-    return {
-        'vat': vat,
-        'projects_searched': [25, 26],
-        'total_tasks': len(formatted_tasks),
-        'tasks': formatted_tasks,
-    }
+        all_user_ids = set()
+        for task in tasks:
+            if task.get('user_ids'):
+                all_user_ids.update(task['user_ids'])
+
+        user_names_map = {}
+        if all_user_ids:
+            client = await get_odoo_client()
+            users_data = await client.search_read(
+                'res.users',
+                [['id', 'in', list(all_user_ids)]],
+                fields=['id', 'name']
+            )
+            user_names_map = {user['id']: user['name'] for user in users_data}
+
+
+        formatted_tasks = []
+        for task in tasks:
+            responsible_name = 'Sem responsável'
+            if task.get('user_ids'):
+
+                first_user_id = task['user_ids'][0]
+
+                responsible_name = user_names_map.get(first_user_id, 'Responsável não encontrado')
+
+            formatted_task = {
+                'id': task['id'],
+                'name': task['name'],
+                'partner_name': task.get('partner_id')[1] if task.get('partner_id') else 'Sem cliente',
+                'responsible_name': responsible_name,  # Nome correto aqui
+                'stage_name': task.get('stage_id')[1] if task.get('stage_id') else 'Sem estágio',
+                'project_name': task.get('project_id')[1] if task.get('project_id') else 'Sem projeto',
+                'x_studio_numero_do_perdcomp': task.get('x_studio_numero_do_perdcomp') or '',
+                'date_last_stage_update': task.get('date_last_stage_update') or '',
+                'write_date': task.get('write_date') or '',
+            }
+            formatted_tasks.append(formatted_task)
+        
+
+        return {
+            'vat': vat,
+            'projects_searched': project_ids,
+            'total_tasks': len(formatted_tasks),
+            'tasks': formatted_tasks,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f'Erro no endpoint get_tasks_by_client_vat: {e}')
+        raise HTTPException(status_code=500, detail='Erro interno no servidor')
+    

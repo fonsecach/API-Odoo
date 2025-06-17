@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
         'cron',
         day_of_week='mon-fri',
         hour=8,  # Ajuste o horário conforme necessário
-        minute=15,
+        minute=0,
         timezone=pytz.timezone('America/Sao_Paulo'),
         id='report_stale_opportunities_job',
         replace_existing=True,

@@ -8,14 +8,14 @@ strategy = "rolling"
 auto_start_machines = true
 auto_stop_machines = false
 force_https = true
-internal_port = 8001
+internal_port = 8_001
 min_machines_running = 1
 processes = [ "app" ]
 
 [processes]
-app = "/app/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8001"
+app = "/app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001"
 
 [[vm]]
 cpu_kind = "shared"
 cpus = 1
-memory = "256mb"
+memory = "512mb"

@@ -30,7 +30,7 @@ async def check_and_report_stale_opportunities():
     Busca oportunidades no Odoo que não são atualizadas há 72 horas nos estágios 8 ou 9,
     gera um relatório em Excel e o envia por e-mail.
     """
-    logger.info('Iniciando verificação de oportunidades estagnadas...')
+    logger.info(f'Iniciando verificação de oportunidades estagnadas...{datetime.now(pytz.timezone('America/Sao_Paulo'))}')
 
     try:
         sao_paulo_tz = pytz.timezone('America/Sao_Paulo')

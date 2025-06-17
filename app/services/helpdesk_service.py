@@ -321,56 +321,43 @@ async def update_ticket(ticket_id: int, ticket_data: Dict[str, Any]) -> bool:
         return False
 
 
+# app/services/helpdesk_service.py
+
+# ... (imports) ...
+
 async def get_helpdesk_tickets_by_vat_and_team(
     vat: str, team_id: int, limit: int = 100, offset: int = 0
 ) -> List[Dict[str, Any]]:
     """
-    Obtém chamados de helpdesk de um cliente (por VAT) em uma equipe específica.
-
-    Args:
-        vat: CNPJ/VAT do cliente.
-        team_id: ID da equipe de helpdesk.
-        limit: Limite de registros a serem retornados.
-        offset: Deslocamento para paginação.
-
-    Returns:
-        Lista de chamados formatados ou lista vazia em caso de erro/não encontrado.
+    Busca chamados de Helpdesk por CNPJ do cliente e ID da equipe,
+    incluindo o nome do responsável.
+    Utiliza 'ilike' para uma busca flexível do CNPJ.
     """
     client = await get_odoo_client()
-    cleaned_vat: str
     try:
-        cleaned_vat = clean_vat(vat)
-    except ValueError as e:
-        logger.error(f'Formato de VAT inválido: {vat} - {e}')
-        raise ValueError(f'Formato de VAT inválido: {vat}. Detalhe: {str(e)}')
-
-    partners_info = await get_company_by_vat(cleaned_vat, fields=['id'])
-    if not partners_info:
-        logger.info(f'Nenhuma empresa encontrada para o VAT: {cleaned_vat}')
-        return []
-
-    partner_ids = [p['id'] for p in partners_info if 'id' in p]
-    if not partner_ids:
-        logger.info(
-            f'Nenhum ID de parceiro extraído para o VAT: {cleaned_vat}'
+        partners = await client.search_read(
+            'res.partner', [['vat', 'ilike', vat]], fields=['id', 'name']
         )
-        return []
+        if not partners:
+            return []
 
-    fields_to_fetch = [
-        'id',
-        'name',
-        'partner_id',
-        'stage_id',
-        'write_date',
-        'date_last_stage_update',
-    ]
+        partner_ids = [partner['id'] for partner in partners]
 
-    domain = [
-        ['team_id', '=', team_id],
-        ['partner_id', 'in', partner_ids],
-    ]
+        fields_to_fetch = [
+            'id',
+            'name',
+            'partner_id',
+            'stage_id',
+            'user_id',
+            'write_date',
+            'date_last_stage_update',
+        ]
 
-    try:
+        domain = [
+            ['team_id', '=', team_id],
+            ['partner_id', 'in', partner_ids],
+        ]
+
         tickets_data = await client.search_read(
             HELPDESK_TICKET_MODEL,
             domain,
@@ -382,40 +369,24 @@ async def get_helpdesk_tickets_by_vat_and_team(
 
         formatted_tickets = []
         for ticket in tickets_data:
-            client_name = None
-            if (
-                ticket.get('partner_id')
-                and isinstance(ticket['partner_id'], list)
-                and len(ticket['partner_id']) > 1
-            ):
-                client_name = ticket['partner_id'][1]
-            elif ticket.get('partner_id') and isinstance(
-                ticket.get('partner_id'), str
-            ): 
-                client_name = ticket.get('partner_id')
-
-            stage_name = None
-            if (
-                ticket.get('stage_id')
-                and isinstance(ticket['stage_id'], list)
-                and len(ticket['stage_id']) > 1
-            ):
-                stage_name = ticket['stage_id'][1]
-            elif ticket.get('stage_id') and isinstance(
-                ticket.get('stage_id'), str
-            ):
-                stage_name = ticket.get('stage_id')
+            client_name = ticket.get('partner_id')[1] if ticket.get('partner_id') else None
+            stage_name = ticket.get('stage_id')[1] if ticket.get('stage_id') else None
+            
+            responsible_name = ticket.get('user_id')[1] if ticket.get('user_id') else 'Sem responsável'
 
             formatted_ticket = {
                 'id': ticket['id'],
                 'name': ticket.get('name'),
                 'client_name': client_name,
+                'responsible_name': responsible_name,
                 'stage_name': stage_name,
                 'write_date': ticket.get('write_date'),
                 'date_last_stage_update': ticket.get('date_last_stage_update'),
             }
             formatted_tickets.append(formatted_ticket)
+
         return formatted_tickets
+
     except Exception as e:
         logger.error(
             f'Erro ao buscar chamados de helpdesk por VAT ({vat}) e equipe ({team_id}): {e}'

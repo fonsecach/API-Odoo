@@ -439,6 +439,7 @@ async def get_tasks_by_client_vat_in_projects(
             'partner_id',
             'stage_id',
             'project_id',
+            'user_ids',
             'x_studio_numero_do_perdcomp',
             'date_last_stage_update',
             'write_date',

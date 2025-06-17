@@ -13,4 +13,4 @@ ENV ENVIRONMENT=production
 
 EXPOSE 8001
 
-CMD ["/app/.venv/bin/fastapi", "run", "app/main.py", "--port", "8001", "--host", "0.0.0.0"]
+CMD ["/app/.venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
