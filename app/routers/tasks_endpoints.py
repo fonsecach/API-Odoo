@@ -2,6 +2,7 @@ import base64
 import logging
 from http import HTTPStatus
 from typing import Any, Dict
+from app.services.tasks_project_service import get_odoo_client 
 
 from fastapi import (
     APIRouter,
@@ -456,15 +457,6 @@ router = APIRouter(prefix='/projects', tags=['Projetos'])
 #     }
 
 
-# app/routers/tasks_endpoints.py
-
-# ... outras importações ...
-# Adicione esta importação para podermos usar o cliente Odoo aqui
-from app.services.tasks_project_service import get_odoo_client 
-from app.utils.utils import clean_vat
-
-# ...
-
 @router.get(
     '/by-vat/{vat:path}',
     summary='Busca tarefas por CNPJ do cliente nos projetos 25 e 26',
@@ -474,10 +466,9 @@ from app.utils.utils import clean_vat
 async def get_tasks_by_client_vat(vat: str):
     """
     Endpoint para obter tarefas de um cliente por CNPJ/VAT em projetos específicos.
-    A lógica para buscar nomes de responsáveis foi otimizada.
+    A lógica para buscar nomes de responsáveis foi otimizada para retornar uma lista.
     """
     try:
-
         cleaned_vat = clean_vat(vat)
         project_ids = [25, 26]
         
@@ -508,21 +499,26 @@ async def get_tasks_by_client_vat(vat: str):
             )
             user_names_map = {user['id']: user['name'] for user in users_data}
 
-
         formatted_tasks = []
         for task in tasks:
-            responsible_name = 'Sem responsável'
+            # --- INÍCIO DA ALTERAÇÃO ---
+            responsible_names = []
             if task.get('user_ids'):
-
-                first_user_id = task['user_ids'][0]
-
-                responsible_name = user_names_map.get(first_user_id, 'Responsável não encontrado')
+                # Itera sobre a lista de IDs de usuários
+                for user_id in task['user_ids']:
+                    user_name = user_names_map.get(user_id, 'Responsável não encontrado')
+                    responsible_names.append(user_name)
+            
+            # Garante um valor padrão caso a lista esteja vazia
+            if not responsible_names:
+                responsible_names.append('Sem responsável')
+            # --- FIM DA ALTERAÇÃO ---
 
             formatted_task = {
                 'id': task['id'],
                 'name': task['name'],
                 'partner_name': task.get('partner_id')[1] if task.get('partner_id') else 'Sem cliente',
-                'responsible_name': responsible_name,  # Nome correto aqui
+                'responsible_names': responsible_names,  # Chave alterada para o plural
                 'stage_name': task.get('stage_id')[1] if task.get('stage_id') else 'Sem estágio',
                 'project_name': task.get('project_id')[1] if task.get('project_id') else 'Sem projeto',
                 'x_studio_numero_do_perdcomp': task.get('x_studio_numero_do_perdcomp') or '',
@@ -531,7 +527,6 @@ async def get_tasks_by_client_vat(vat: str):
             }
             formatted_tasks.append(formatted_task)
         
-
         return {
             'vat': vat,
             'projects_searched': project_ids,
@@ -544,4 +539,3 @@ async def get_tasks_by_client_vat(vat: str):
     except Exception as e:
         logger.error(f'Erro no endpoint get_tasks_by_client_vat: {e}')
         raise HTTPException(status_code=500, detail='Erro interno no servidor')
-    

@@ -372,13 +372,21 @@ async def get_helpdesk_tickets_by_vat_and_team(
             client_name = ticket.get('partner_id')[1] if ticket.get('partner_id') else None
             stage_name = ticket.get('stage_id')[1] if ticket.get('stage_id') else None
             
-            responsible_name = ticket.get('user_id')[1] if ticket.get('user_id') else 'Sem responsável'
+            responsible_names = []
+            responsible_info = ticket.get('user_id')  # Retorna [id, nome] ou False
+
+            if responsible_info:
+                # Adiciona o nome do responsável à lista
+                responsible_names.append(responsible_info[1])
+            else:
+                # Adiciona o valor padrão se não houver responsável
+                responsible_names.append('Sem responsável')
 
             formatted_ticket = {
                 'id': ticket['id'],
                 'name': ticket.get('name'),
                 'client_name': client_name,
-                'responsible_name': responsible_name,
+                'responsible_names': responsible_names,
                 'stage_name': stage_name,
                 'write_date': ticket.get('write_date'),
                 'date_last_stage_update': ticket.get('date_last_stage_update'),
