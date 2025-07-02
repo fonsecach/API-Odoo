@@ -535,4 +535,10 @@ class OpportunityPowerBIData(BaseModel):
     city: Optional[Any] = None
     zip: Optional[Any] = None
     country_id: Optional[Any] = None
+    
+    # Stage tracking fields from mail.message
+    stage_tracking_calculo_pendente_date: Optional[Any] = None
+    stage_tracking_em_processamento_date: Optional[Any] = None
+    stage_tracking_calculo_concluido_date: Optional[Any] = None
+    stage_tracking_calculo_pendente_user: Optional[Any] = None
 

@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.schemas import OpportunityPowerBIData
-from app.services.crm_service import fetch_opportunities_for_powerbi, fetch_opportunities_for_powerbi_by_company, fetch_opportunity_by_id_for_powerbi
+from app.services.crm_service import fetch_opportunities_for_powerbi, fetch_opportunities_for_powerbi_by_company, fetch_opportunity_by_id_for_powerbi, get_opportunity_stage_tracking_data
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix='/opportunities', tags=['Oportunidades'])
@@ -113,6 +113,83 @@ async def get_opportunity_powerbi_by_id_endpoint(opportunity_id: int):
         raise HTTPException(
             status_code=500,
             detail=f"Erro interno do servidor ao buscar oportunidade {opportunity_id} para PowerBI"
+        )
+
+
+@router.get(
+    '/{opportunity_id}/stage-tracking',
+    summary='Buscar dados de rastreamento de estágios de uma oportunidade',
+    description='Endpoint para buscar datas de mudanças de estágio específicos do mail.message',
+    tags=['Rastreamento']
+)
+async def get_opportunity_stage_tracking_endpoint(opportunity_id: int, debug: bool = False):
+    """
+    Retorna dados de rastreamento de estágios de uma oportunidade específica.
+    
+    Busca no mail.message as datas quando a oportunidade passou pelos estágios:
+    - Cálculo Pendente
+    - Em Processamento  
+    - Cálculo Concluído
+    
+    Args:
+        opportunity_id: ID da oportunidade para buscar rastreamento.
+        debug: Se True, retorna informações de debug adicionais.
+    
+    Returns:
+        Dicionário com as datas dos estágios e informações do usuário.
+    """
+    try:
+        tracking_data = await get_opportunity_stage_tracking_data(opportunity_id)
+        
+        if debug:
+            # Buscar mensagens brutas para debug
+            from app.services.crm_service import get_odoo_client
+            odoo_client = await get_odoo_client()
+            messages = await odoo_client.search_read(
+                'mail.message',
+                domain=[
+                    ['model', '=', 'crm.lead'],
+                    ['res_id', '=', opportunity_id]
+                ],
+                fields=['id', 'date', 'body', 'author_id', 'message_type', 'tracking_value_ids'],
+                order='date asc'
+            )
+            
+            # Buscar tracking values
+            tracking_values = await odoo_client.search_read(
+                'mail.tracking.value',
+                domain=[],
+                fields=['id', 'field', 'old_value_char', 'new_value_char', 'mail_message_id'],
+                limit=1000
+            )
+            
+            # Buscar estágios para debug
+            stages = await odoo_client.search_read(
+                'crm.stage',
+                domain=[],
+                fields=['id', 'name']
+            )
+            
+            message_ids = [msg['id'] for msg in messages]
+            relevant_tracking = [
+                tv for tv in tracking_values 
+                if tv.get('mail_message_id') and tv['mail_message_id'][0] in message_ids
+            ]
+            
+            tracking_data['debug_messages'] = messages
+            tracking_data['debug_tracking_values'] = relevant_tracking
+            tracking_data['debug_stages'] = stages
+        
+        logger.info(f"Dados de rastreamento retornados para oportunidade {opportunity_id}")
+        return tracking_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro inesperado no endpoint de rastreamento para oportunidade {opportunity_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno do servidor ao buscar dados de rastreamento da oportunidade {opportunity_id}"
         )
 
 
