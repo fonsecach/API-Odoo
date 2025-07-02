@@ -250,7 +250,7 @@ async def fetch_opportunities_for_powerbi_by_company(company_id: int) -> List[Op
                     'partner_id': _extract_relational_name(opp_data.get('partner_id')),
                     'user_id': _extract_relational_name(opp_data.get('user_id')),
                     'team_id': _extract_relational_name(opp_data.get('team_id')),
-                    'activity_ids': _format_activity_ids(opp_data.get('activity_ids')),
+                    'activity_ids': await _get_latest_activity_summary(odoo_client, opp_data.get('activity_ids')),
                     'expected_revenue': opp_data.get('expected_revenue'),
                     'probability': opp_data.get('probability'),
                     'stage_id': _extract_relational_name(opp_data.get('stage_id')),
@@ -408,7 +408,7 @@ async def fetch_opportunity_by_id_for_powerbi(opportunity_id: int) -> Opportunit
                 'partner_id': _extract_relational_name(opp_data.get('partner_id')),
                 'user_id': _extract_relational_name(opp_data.get('user_id')),
                 'team_id': _extract_relational_name(opp_data.get('team_id')),
-                'activity_ids': _format_activity_ids(opp_data.get('activity_ids')),
+                'activity_ids': await _get_latest_activity_summary(odoo_client, opp_data.get('activity_ids')),
                 'expected_revenue': opp_data.get('expected_revenue'),
                 'probability': opp_data.get('probability'),
                 'stage_id': _extract_relational_name(opp_data.get('stage_id')),
@@ -559,7 +559,7 @@ async def fetch_opportunities_for_powerbi() -> List[OpportunityPowerBIData]:
                     'partner_id': _extract_relational_name(opp_data.get('partner_id')),
                     'user_id': _extract_relational_name(opp_data.get('user_id')),
                     'team_id': _extract_relational_name(opp_data.get('team_id')),
-                    'activity_ids': _format_activity_ids(opp_data.get('activity_ids')),
+                    'activity_ids': await _get_latest_activity_summary(odoo_client, opp_data.get('activity_ids')),
                     'expected_revenue': opp_data.get('expected_revenue'),
                     'probability': opp_data.get('probability'),
                     'stage_id': _extract_relational_name(opp_data.get('stage_id')),
@@ -671,8 +671,65 @@ def _extract_relational_id(field_value):
     return None
 
 
+async def _get_latest_activity_summary(odoo_client, activity_ids):
+    """
+    Busca o resumo da última atividade registrada.
+    
+    Args:
+        odoo_client: Cliente Odoo assíncrono
+        activity_ids: Lista de IDs de atividades
+        
+    Returns:
+        String com resumo da última atividade ou None
+    """
+    if not activity_ids or not isinstance(activity_ids, list) or len(activity_ids) == 0:
+        return None
+    
+    try:
+        # Buscar apenas a última atividade (mais eficiente)
+        activities = await odoo_client.search_read(
+            'mail.activity',
+            domain=[['id', 'in', activity_ids]],
+            fields=['summary', 'activity_type_id', 'date_deadline'],
+            order='create_date desc',
+            limit=1
+        )
+        
+        if not activities:
+            return None
+        
+        latest_activity = activities[0]
+        
+        # Montar resumo simplificado da atividade
+        summary_parts = []
+        
+        # Tipo de atividade
+        activity_type = latest_activity.get('activity_type_id')
+        if activity_type and isinstance(activity_type, list) and len(activity_type) > 1:
+            summary_parts.append(f"Tipo: {activity_type[1]}")
+        
+        # Resumo
+        summary = latest_activity.get('summary')
+        if summary:
+            # Limitar tamanho do resumo
+            if len(summary) > 50:
+                summary = summary[:50] + "..."
+            summary_parts.append(f"Resumo: {summary}")
+        
+        # Data de vencimento
+        date_deadline = latest_activity.get('date_deadline')
+        if date_deadline:
+            summary_parts.append(f"Vencimento: {date_deadline}")
+        
+        return " | ".join(summary_parts) if summary_parts else "Atividade sem detalhes"
+        
+    except Exception as e:
+        logger.warning(f"Erro ao buscar última atividade: {str(e)}")
+        return None
+
+
 def _format_activity_ids(activity_ids):
-    """Formata lista de IDs de atividades para string."""
+    """Formata lista de IDs de atividades para string (função legada)."""
     if isinstance(activity_ids, list) and activity_ids:
         return ', '.join(map(str, activity_ids))
     return None
@@ -847,17 +904,14 @@ async def get_opportunity_stage_tracking_data(opportunity_id: int) -> Dict[str, 
                         if not tracking_data['calculo_pendente_date']:
                             tracking_data['calculo_pendente_date'] = message_date
                             tracking_data['calculo_pendente_user'] = _extract_relational_name(author_id)
-                            logger.info(f"✓ Encontrado mudança para 'Cálculo pendente' em {message_date}")
                             
                     elif _stage_matches_target(new_value, 'Em processamento', stage_names):
                         if not tracking_data['em_processamento_date']:
                             tracking_data['em_processamento_date'] = message_date
-                            logger.info(f"✓ Encontrado mudança para 'Em processamento' em {message_date}")
                             
                     elif _stage_matches_target(new_value, 'Cálculo concluído', stage_names):
                         if not tracking_data['calculo_concluido_date']:
                             tracking_data['calculo_concluido_date'] = message_date
-                            logger.info(f"✓ Encontrado mudança para 'Cálculo concluído' em {message_date}")
         
         # Se não encontrou tracking nas mensagens de "Estágio alterado", usar estratégia alternativa
         if not any(tracking_data.values()):
@@ -913,17 +967,14 @@ async def get_opportunity_stage_tracking_data(opportunity_id: int) -> Dict[str, 
                                     if not tracking_data['calculo_pendente_date']:
                                         tracking_data['calculo_pendente_date'] = message_date
                                         tracking_data['calculo_pendente_user'] = _extract_relational_name(author_id)
-                                        logger.info(f"✓ Alternative: Encontrado 'Cálculo pendente' em {message_date}")
                                         
                                 elif _stage_matches_target(new_value, 'Em processamento', stage_names):
                                     if not tracking_data['em_processamento_date']:
                                         tracking_data['em_processamento_date'] = message_date
-                                        logger.info(f"✓ Alternative: Encontrado 'Em processamento' em {message_date}")
                                         
                                 elif _stage_matches_target(new_value, 'Cálculo concluído', stage_names):
                                     if not tracking_data['calculo_concluido_date']:
                                         tracking_data['calculo_concluido_date'] = message_date
-                                        logger.info(f"✓ Alternative: Encontrado 'Cálculo concluído' em {message_date}")
         
         # Fallback final: Analisar corpo das mensagens para encontrar mudanças de estágio
         if not any(tracking_data.values()):
@@ -946,17 +997,14 @@ async def get_opportunity_stage_tracking_data(opportunity_id: int) -> Dict[str, 
                         if not tracking_data['calculo_pendente_date']:
                             tracking_data['calculo_pendente_date'] = message_date
                             tracking_data['calculo_pendente_user'] = _extract_relational_name(author_id)
-                            logger.debug(f"Encontrado estágio 'Cálculo pendente' em {message_date}")
                             
                     elif _contains_stage_reference(body, 'Em processamento', stage_names):
                         if not tracking_data['em_processamento_date']:
                             tracking_data['em_processamento_date'] = message_date
-                            logger.debug(f"Encontrado estágio 'Em processamento' em {message_date}")
                             
                     elif _contains_stage_reference(body, 'Cálculo concluído', stage_names):
                         if not tracking_data['calculo_concluido_date']:
                             tracking_data['calculo_concluido_date'] = message_date
-                            logger.debug(f"Encontrado estágio 'Cálculo concluído' em {message_date}")
         
         # Estratégia final: Se nenhum tracking foi encontrado, tentar usar dados existentes na oportunidade
         if not any(tracking_data.values()):
