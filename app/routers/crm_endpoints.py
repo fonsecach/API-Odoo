@@ -4,7 +4,15 @@ from typing import List
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.schemas import OpportunityPowerBIData
-from app.services.crm_service import fetch_opportunities_for_powerbi, fetch_opportunities_for_powerbi_by_company, fetch_opportunity_by_id_for_powerbi, get_opportunity_stage_tracking_data
+from app.services.crm_service import (
+    fetch_opportunities_for_powerbi, 
+    fetch_opportunities_for_powerbi_by_company, 
+    fetch_opportunity_by_id_for_powerbi, 
+    get_opportunity_stage_tracking_data,
+    fetch_opportunities_for_powerbi_with_pt_names,
+    fetch_opportunities_for_powerbi_by_company_with_pt_names,
+    fetch_opportunity_by_id_for_powerbi_with_pt_names
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix='/opportunities', tags=['Oportunidades'])
@@ -13,19 +21,20 @@ router = APIRouter(prefix='/opportunities', tags=['Oportunidades'])
 @router.get(
     '/powerbi',
     summary='Buscar dados de oportunidades para PowerBI',
-    description='Endpoint especializado para fornecer dados das oportunidades CRM formatados para consumo pelo PowerBI',
-    response_model=List[OpportunityPowerBIData],
+    description='Endpoint especializado para fornecer dados das oportunidades CRM formatados para consumo pelo PowerBI com nomes em português',
+    response_model=List[dict],
     tags=['PowerBI']
 )
 async def get_opportunities_powerbi_endpoint():
     """
     Retorna todas as oportunidades do CRM com todos os campos necessários para análise no PowerBI.
+    Os campos são retornados com nomes em português e remove campos: probability, street, country_id.
     
     Returns:
         Lista completa de oportunidades com todos os campos de negócio formatados.
     """
     try:
-        opportunities = await fetch_opportunities_for_powerbi()
+        opportunities = await fetch_opportunities_for_powerbi_with_pt_names()
         
         if not opportunities:
             logger.info("Nenhuma oportunidade encontrada para PowerBI")
@@ -47,13 +56,14 @@ async def get_opportunities_powerbi_endpoint():
 @router.get(
     '/powerbi/company/{company_id}',
     summary='Buscar oportunidades de uma empresa específica para PowerBI',
-    description='Endpoint para buscar oportunidades de uma empresa específica formatadas para PowerBI',
-    response_model=List[OpportunityPowerBIData],
+    description='Endpoint para buscar oportunidades de uma empresa específica formatadas para PowerBI com nomes em português',
+    response_model=List[dict],
     tags=['PowerBI']
 )
 async def get_opportunities_powerbi_by_company_endpoint(company_id: int):
     """
     Retorna todas as oportunidades de uma empresa específica do CRM formatadas para PowerBI.
+    Os campos são retornados com nomes em português e remove campos: probability, street, country_id.
     
     Args:
         company_id: ID da empresa (partner_id) para filtrar as oportunidades.
@@ -62,7 +72,7 @@ async def get_opportunities_powerbi_by_company_endpoint(company_id: int):
         Lista de oportunidades da empresa especificada com todos os campos de negócio.
     """
     try:
-        opportunities = await fetch_opportunities_for_powerbi_by_company(company_id)
+        opportunities = await fetch_opportunities_for_powerbi_by_company_with_pt_names(company_id)
         
         if not opportunities:
             logger.info(f"Nenhuma oportunidade encontrada para a empresa ID {company_id}")
@@ -84,25 +94,26 @@ async def get_opportunities_powerbi_by_company_endpoint(company_id: int):
 @router.get(
     '/powerbi/{opportunity_id}',
     summary='Buscar uma oportunidade específica por ID para PowerBI',
-    description='Endpoint para buscar uma oportunidade específica por ID formatada para PowerBI',
-    response_model=OpportunityPowerBIData,
+    description='Endpoint para buscar uma oportunidade específica por ID formatada para PowerBI com nomes em português',
+    response_model=dict,
     tags=['PowerBI']
 )
 async def get_opportunity_powerbi_by_id_endpoint(opportunity_id: int):
     """
     Retorna uma oportunidade específica do CRM formatada para PowerBI.
+    Os campos são retornados com nomes em português e remove campos: probability, street, country_id.
     
     Args:
         opportunity_id: ID da oportunidade para buscar.
     
     Returns:
-        OpportunityPowerBIData da oportunidade especificada.
+        Dicionário da oportunidade especificada com nomes em português.
     
     Raises:
         HTTPException: 404 se a oportunidade não for encontrada.
     """
     try:
-        opportunity = await fetch_opportunity_by_id_for_powerbi(opportunity_id)
+        opportunity = await fetch_opportunity_by_id_for_powerbi_with_pt_names(opportunity_id)
         logger.info(f"Oportunidade ID {opportunity_id} retornada para PowerBI")
         return opportunity
         

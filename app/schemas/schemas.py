@@ -542,3 +542,48 @@ class OpportunityPowerBIData(BaseModel):
     stage_tracking_calculo_concluido_date: Optional[Any] = None
     stage_tracking_calculo_pendente_user: Optional[Any] = None
 
+
+class OpportunityPowerBIResponse(BaseModel):
+    """Modelo de resposta para dados de oportunidades para PowerBI com nomes em português."""
+    
+    model_config = ConfigDict(extra='allow')
+    
+    id: Optional[int] = None
+    CriadoEm: Optional[Any] = Field(None, alias="create_date")
+    Oportunidade: Optional[Any] = Field(None, alias="name")
+    Tese: Optional[Any] = Field(None, alias="x_studio_tese")
+    Cliente: Optional[Any] = Field(None, alias="partner_id")
+    Estado: Optional[Any] = Field(None, alias="state_id")
+    Vendedor: Optional[Any] = Field(None, alias="user_id")
+    EquipeDeVendas: Optional[Any] = Field(None, alias="team_id")
+    UltimaAtividade: Optional[Any] = Field(None, alias="activity_ids")
+    ReceitaEsperada: Optional[Any] = Field(None, alias="expected_revenue")
+    Estagio: Optional[Any] = Field(None, alias="stage_id")
+    Segmento: Optional[Any] = Field(None, alias="x_studio_categoria_economica")
+    Ativo: Optional[Any] = Field(None, alias="active")
+    StatusGanhoPerda: Optional[Any] = Field(None, alias="won_status")
+    MotivoDaPerda: Optional[Any] = Field(None, alias="lost_reason_id")
+    PrevisaoInss: Optional[Any] = Field(None, alias="x_studio_previsao_inss")
+    PrevisaoIpi: Optional[Any] = Field(None, alias="x_studio_previsao_ipi")
+    PrevisaoIrpjCsll: Optional[Any] = Field(None, alias="x_studio_previsao_irpj_e_csll")
+    PrevisaoPisCofins: Optional[Any] = Field(None, alias="x_studio_previsao_pis_e_cofins")
+    Debitos: Optional[Any] = Field(None, alias="x_studio_debitos")
+    UltimaAtualizacaoDeEstagio: Optional[Any] = Field(None, alias="x_studio_ultima_atualizacao_de_estagio")
+    TicketDePrimeiraAnalise: Optional[Any] = Field(None, alias="x_studio_ticket_de_1_anlise")
+    TicketDeSegundaAnalise: Optional[Any] = Field(None, alias="x_studio_ticket_de_2_analise")
+    Probabilidade: Optional[Any] = Field(None, alias="x_studio_probabilidade")
+    ReceitaBrutaEsperada: Optional[Any] = Field(None, alias="x_studio_receita_bruta_esperada")
+    FaturamentoEsperado: Optional[Any] = Field(None, alias="x_studio_faturamento_esperado")
+    Honorarios: Optional[Any] = Field(None, alias="x_studio_honorrios_1")
+    UltimaAtualizacao: Optional[Any] = Field(None, alias="write_date")
+    DataDeGanhoOuPerda: Optional[Any] = Field(None, alias="date_closed")
+    TipoDeOportunidade: Optional[Any] = Field(None, alias="x_studio_tipo_de_oportunidade_1")
+    Telefone: Optional[Any] = Field(None, alias="phone")
+    Email: Optional[Any] = Field(None, alias="email_from")
+    Cidade: Optional[Any] = Field(None, alias="city")
+    CEP: Optional[Any] = Field(None, alias="zip")
+    DataCalculoPendente: Optional[Any] = Field(None, alias="stage_tracking_calculo_pendente_date")
+    DataEmProcessamento: Optional[Any] = Field(None, alias="stage_tracking_em_processamento_date")
+    DataCalculoConcluido: Optional[Any] = Field(None, alias="stage_tracking_calculo_concluido_date")
+    UsuarioRealizouCalculo: Optional[Any] = Field(None, alias="stage_tracking_calculo_pendente_user")
+
