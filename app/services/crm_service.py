@@ -205,7 +205,7 @@ async def fetch_opportunities_for_powerbi_by_company(company_id: int) -> List[Op
         odoo_client = await get_odoo_client()
         
         fields_to_fetch = [
-            'id', 'create_date', 'name', 'x_studio_tese', 'partner_id', 'partner_name',
+            'id', 'create_date', 'name', 'x_studio_tese', 'partner_id',
             'user_id', 'team_id', 'activity_ids', 'expected_revenue', 'probability',
             'stage_id', 'active', 'won_status', 'lost_reason_id', 'state_id',
             'phone', 'email_from', 'street', 'city', 'zip', 'country_id',
@@ -237,13 +237,17 @@ async def fetch_opportunities_for_powerbi_by_company(company_id: int) -> List[Op
         
         for opp_data in opportunities_data:
             try:
+                # Get field descriptions for selection fields
+                x_studio_tese_desc = await _get_selection_field_description(
+                    odoo_client, 'crm.lead', 'x_studio_tese', opp_data.get('x_studio_tese')
+                )
+                
                 processed_opp = {
                     'id': opp_data.get('id'),
                     'create_date': opp_data.get('create_date'),
                     'name': opp_data.get('name'),
-                    'x_studio_tese': opp_data.get('x_studio_tese'),
+                    'x_studio_tese': x_studio_tese_desc,
                     'partner_id': _extract_relational_name(opp_data.get('partner_id')),
-                    'partner_name': opp_data.get('partner_name'),
                     'user_id': _extract_relational_name(opp_data.get('user_id')),
                     'team_id': _extract_relational_name(opp_data.get('team_id')),
                     'activity_ids': _format_activity_ids(opp_data.get('activity_ids')),
@@ -293,7 +297,12 @@ async def fetch_opportunities_for_powerbi_by_company(company_id: int) -> List[Op
                         
                         if partner_data:
                             partner_info = partner_data[0]
-                            processed_opp['x_studio_categoria_economica'] = partner_info.get('x_studio_categoria_economica')
+                            # Get categoria economica description
+                            categoria_desc = await _get_selection_field_description(
+                                odoo_client, 'res.partner', 'x_studio_categoria_economica', 
+                                partner_info.get('x_studio_categoria_economica')
+                            )
+                            processed_opp['x_studio_categoria_economica'] = categoria_desc
                     except Exception as partner_error:
                         logger.warning(f"Erro ao buscar dados do parceiro {partner_id}: {str(partner_error)}")
                         processed_opp['x_studio_categoria_economica'] = None
@@ -334,7 +343,7 @@ async def fetch_opportunity_by_id_for_powerbi(opportunity_id: int) -> Opportunit
         odoo_client = await get_odoo_client()
         
         fields_to_fetch = [
-            'id', 'create_date', 'name', 'x_studio_tese', 'partner_id', 'partner_name',
+            'id', 'create_date', 'name', 'x_studio_tese', 'partner_id',
             'user_id', 'team_id', 'activity_ids', 'expected_revenue', 'probability',
             'stage_id', 'active', 'won_status', 'lost_reason_id', 'state_id',
             'phone', 'email_from', 'street', 'city', 'zip', 'country_id',
@@ -368,13 +377,17 @@ async def fetch_opportunity_by_id_for_powerbi(opportunity_id: int) -> Opportunit
         opp_data = opportunities_data[0]
         
         try:
+            # Get field descriptions for selection fields
+            x_studio_tese_desc = await _get_selection_field_description(
+                odoo_client, 'crm.lead', 'x_studio_tese', opp_data.get('x_studio_tese')
+            )
+            
             processed_opp = {
                 'id': opp_data.get('id'),
                 'create_date': opp_data.get('create_date'),
                 'name': opp_data.get('name'),
-                'x_studio_tese': opp_data.get('x_studio_tese'),
+                'x_studio_tese': x_studio_tese_desc,
                 'partner_id': _extract_relational_name(opp_data.get('partner_id')),
-                'partner_name': opp_data.get('partner_name'),
                 'user_id': _extract_relational_name(opp_data.get('user_id')),
                 'team_id': _extract_relational_name(opp_data.get('team_id')),
                 'activity_ids': _format_activity_ids(opp_data.get('activity_ids')),
@@ -424,7 +437,12 @@ async def fetch_opportunity_by_id_for_powerbi(opportunity_id: int) -> Opportunit
                     
                     if partner_data:
                         partner_info = partner_data[0]
-                        processed_opp['x_studio_categoria_economica'] = partner_info.get('x_studio_categoria_economica')
+                        # Get categoria economica description
+                        categoria_desc = await _get_selection_field_description(
+                            odoo_client, 'res.partner', 'x_studio_categoria_economica', 
+                            partner_info.get('x_studio_categoria_economica')
+                        )
+                        processed_opp['x_studio_categoria_economica'] = categoria_desc
                 except Exception as partner_error:
                     logger.warning(f"Erro ao buscar dados do parceiro {partner_id}: {str(partner_error)}")
                     processed_opp['x_studio_categoria_economica'] = None
@@ -463,7 +481,7 @@ async def fetch_opportunities_for_powerbi() -> List[OpportunityPowerBIData]:
         odoo_client = await get_odoo_client()
         
         fields_to_fetch = [
-            'id', 'create_date', 'name', 'x_studio_tese', 'partner_id', 'partner_name',
+            'id', 'create_date', 'name', 'x_studio_tese', 'partner_id',
             'user_id', 'team_id', 'activity_ids', 'expected_revenue', 'probability',
             'stage_id', 'active', 'won_status', 'lost_reason_id', 'state_id',
             'phone', 'email_from', 'street', 'city', 'zip', 'country_id',
@@ -492,13 +510,17 @@ async def fetch_opportunities_for_powerbi() -> List[OpportunityPowerBIData]:
         
         for opp_data in opportunities_data:
             try:
+                # Get field descriptions for selection fields
+                x_studio_tese_desc = await _get_selection_field_description(
+                    odoo_client, 'crm.lead', 'x_studio_tese', opp_data.get('x_studio_tese')
+                )
+                
                 processed_opp = {
                     'id': opp_data.get('id'),
                     'create_date': opp_data.get('create_date'),
                     'name': opp_data.get('name'),
-                    'x_studio_tese': opp_data.get('x_studio_tese'),
+                    'x_studio_tese': x_studio_tese_desc,
                     'partner_id': _extract_relational_name(opp_data.get('partner_id')),
-                    'partner_name': opp_data.get('partner_name'),
                     'user_id': _extract_relational_name(opp_data.get('user_id')),
                     'team_id': _extract_relational_name(opp_data.get('team_id')),
                     'activity_ids': _format_activity_ids(opp_data.get('activity_ids')),
@@ -548,7 +570,12 @@ async def fetch_opportunities_for_powerbi() -> List[OpportunityPowerBIData]:
                         
                         if partner_data:
                             partner_info = partner_data[0]
-                            processed_opp['x_studio_categoria_economica'] = partner_info.get('x_studio_categoria_economica')
+                            # Get categoria economica description
+                            categoria_desc = await _get_selection_field_description(
+                                odoo_client, 'res.partner', 'x_studio_categoria_economica', 
+                                partner_info.get('x_studio_categoria_economica')
+                            )
+                            processed_opp['x_studio_categoria_economica'] = categoria_desc
                     except Exception as partner_error:
                         logger.warning(f"Erro ao buscar dados do parceiro {partner_id}: {str(partner_error)}")
                         processed_opp['x_studio_categoria_economica'] = None
@@ -595,4 +622,34 @@ def _format_activity_ids(activity_ids):
     if isinstance(activity_ids, list) and activity_ids:
         return ', '.join(map(str, activity_ids))
     return None
+
+
+async def _get_selection_field_description(odoo_client, model_name: str, field_name: str, field_value):
+    """Busca a descrição de um campo de seleção no Odoo."""
+    if not field_value:
+        return None
+    
+    try:
+        # Busca as opções de seleção do campo
+        fields_info = await odoo_client.execute_kw(
+            model_name,
+            'fields_get',
+            [],
+            {'attributes': ['selection']}
+        )
+        
+        field_info = fields_info.get(field_name, {})
+        selection_options = field_info.get('selection', [])
+        
+        # Busca a descrição correspondente ao valor
+        for option_value, option_label in selection_options:
+            if str(option_value) == str(field_value):
+                return option_label
+        
+        # Se não encontrar, retorna o valor original
+        return field_value
+        
+    except Exception as e:
+        logger.warning(f"Erro ao buscar descrição do campo {field_name}: {str(e)}")
+        return field_value
 

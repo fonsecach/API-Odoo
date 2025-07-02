@@ -529,7 +529,6 @@ class OpportunityPowerBIData(BaseModel):
     
     # Additional fields from JSON
     probability: Optional[Any] = None
-    partner_name: Optional[Any] = None
     phone: Optional[Any] = None
     email_from: Optional[Any] = None
     street: Optional[Any] = None
