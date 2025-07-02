@@ -1,38 +1,47 @@
-# import base64
-# import json
-# import logging  # Adicionado
-# from http import HTTPStatus
-# from typing import List
+import logging
+from typing import List
 
-# from fastapi import (
-#     APIRouter,
-#     File,
-#     Form,
-#     HTTPException,
-#     UploadFile,
-#     status,
-# )
+from fastapi import APIRouter, HTTPException
 
-# from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
-# from app.schemas.schemas import (
-#     AttachmentInfo,
-#     OpportunityCreate,
-#     OpportunityCreateIntelligent,
-#     OpportunityCreateResponse,
-#     OpportunityDefault,
-#     OpportunityReturn,
-# )
-# from app.services.authentication import authenticate_odoo, connect_to_odoo
-# from app.services.company_service import get_or_create_partner
-# from app.services.crm_service import (
-#     create_opportunity_in_crm,
-#     create_opportunity_intelligent_async,
-#     fetch_opportunity_by_id,
-#     get_opportunities_info,
-# )
+from app.schemas.schemas import OpportunityPowerBIData
+from app.services.crm_service import fetch_opportunities_for_powerbi
 
-# logger = logging.getLogger(__name__)
-# router = APIRouter(prefix='/opportunities', tags=['Oportunidades'])
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix='/opportunities', tags=['Oportunidades'])
+
+
+@router.get(
+    '/powerbi',
+    summary='Buscar dados de oportunidades para PowerBI',
+    description='Endpoint especializado para fornecer dados das oportunidades CRM formatados para consumo pelo PowerBI',
+    response_model=List[OpportunityPowerBIData],
+    tags=['PowerBI']
+)
+async def get_opportunities_powerbi_endpoint():
+    """
+    Retorna todas as oportunidades do CRM com todos os campos necessários para análise no PowerBI.
+    
+    Returns:
+        Lista completa de oportunidades com todos os campos de negócio formatados.
+    """
+    try:
+        opportunities = await fetch_opportunities_for_powerbi()
+        
+        if not opportunities:
+            logger.info("Nenhuma oportunidade encontrada para PowerBI")
+            return []
+        
+        logger.info(f"Retornando {len(opportunities)} oportunidades para PowerBI")
+        return opportunities
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro inesperado no endpoint PowerBI: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno do servidor ao buscar dados para PowerBI"
+        )
 
 
 # @router.get('/', summary='Lista oportunidades cadastradas')

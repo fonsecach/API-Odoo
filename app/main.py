@@ -13,8 +13,7 @@ from scalar_fastapi import get_scalar_api_reference
 
 # from app.routers.analytics_endpoints import router as analytics_router
 from app.routers.company_endpoints import router as company_router
-
-# from app.routers.crm_endpoints import router as crm_router
+from app.routers.crm_endpoints import router as crm_router
 from app.routers.cron_jobs_endpoints import router as cron_jobs_router
 
 # from app.routers.custom_fields_endpoints import router as custom_fields_router
@@ -89,7 +88,7 @@ app.add_middleware(
 
 # Inclusão dos routers
 app.include_router(company_router)
-# app.include_router(crm_router)
+app.include_router(crm_router)
 app.include_router(tasks_router)
 app.include_router(helpdesk_router)
 # app.include_router(sales_orders_router)
