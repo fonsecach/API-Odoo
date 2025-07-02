@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
 from pydantic import (
     BaseModel,
@@ -490,78 +490,50 @@ class SelectionFieldUpdate(BaseModel):
 class OpportunityPowerBIData(BaseModel):
     """Modelo para dados de oportunidades para PowerBI."""
     
-    id: int
-    create_date: Optional[datetime] = None
-    name: Optional[str] = None
-    x_studio_tese: Optional[str] = None
-    partner_id: Optional[str] = None
-    state_id: Optional[str] = None
-    user_id: Optional[str] = None
-    team_id: Optional[str] = None
-    activity_ids: Optional[str] = None
-    expected_revenue: Optional[float] = None
-    stage_id: Optional[Union[int, List]] = None
-    x_studio_categoria_economica: Optional[str] = None
-    active: Optional[bool] = None
-    won_status: Optional[str] = None
-    lost_reason_id: Optional[str] = None
-    x_studio_previsao_inss: Optional[float] = None
-    x_studio_previsao_ipi: Optional[float] = None
-    x_studio_previsao_irpj_e_csll: Optional[float] = None
-    x_studio_previsao_pis_e_cofins: Optional[float] = None
-    x_studio_debitos: Optional[float] = None
-    x_studio_ultima_atualizacao_de_estagio: Optional[datetime] = None
-    x_studio_ticket_de_1_anlise: Optional[float] = None
-    x_studio_ticket_de_2_analise: Optional[float] = None
-    x_studio_probabilidade: Optional[Union[str, bool]] = None
-    x_studio_receita_bruta_esperada: Optional[float] = None
-    x_studio_faturamento_esperado: Optional[float] = None
-    x_studio_honorrios_1: Optional[float] = None
-    write_date: Optional[datetime] = None
-    date_closed: Optional[Union[datetime, str, bool]] = None
-    x_studio_tipo_de_oportunidade_1: Optional[Union[str, bool]] = None
-    x_studio_data_calculo_pendente: Optional[Union[datetime, str, bool]] = None
-    x_studio_data_em_processamento_1: Optional[Union[datetime, str, bool]] = None
-    x_studio_data_calculo_concluido: Optional[Union[datetime, str, bool]] = None
-    x_studio_usuario_calculo_concluido: Optional[Union[datetime, str, bool]] = None
+    model_config = ConfigDict(extra='allow')
     
-    @field_validator('stage_id')
-    @classmethod
-    def validate_stage_id(cls, v):
-        """Extrai ID de campos relacionais do Odoo [ID, Nome]."""
-        if isinstance(v, list) and len(v) >= 1:
-            return v[0]  # Retorna apenas o ID
-        return v
+    id: Optional[int] = None
+    create_date: Optional[Any] = None
+    name: Optional[Any] = None
+    x_studio_tese: Optional[Any] = None
+    partner_id: Optional[Any] = None
+    state_id: Optional[Any] = None
+    user_id: Optional[Any] = None
+    team_id: Optional[Any] = None
+    activity_ids: Optional[Any] = None
+    expected_revenue: Optional[Any] = None
+    stage_id: Optional[Any] = None
+    x_studio_categoria_economica: Optional[Any] = None
+    active: Optional[Any] = None
+    won_status: Optional[Any] = None
+    lost_reason_id: Optional[Any] = None
+    x_studio_previsao_inss: Optional[Any] = None
+    x_studio_previsao_ipi: Optional[Any] = None
+    x_studio_previsao_irpj_e_csll: Optional[Any] = None
+    x_studio_previsao_pis_e_cofins: Optional[Any] = None
+    x_studio_debitos: Optional[Any] = None
+    x_studio_ultima_atualizacao_de_estagio: Optional[Any] = None
+    x_studio_ticket_de_1_anlise: Optional[Any] = None
+    x_studio_ticket_de_2_analise: Optional[Any] = None
+    x_studio_probabilidade: Optional[Any] = None
+    x_studio_receita_bruta_esperada: Optional[Any] = None
+    x_studio_faturamento_esperado: Optional[Any] = None
+    x_studio_honorrios_1: Optional[Any] = None
+    write_date: Optional[Any] = None
+    date_closed: Optional[Any] = None
+    x_studio_tipo_de_oportunidade_1: Optional[Any] = None
+    x_studio_data_calculo_pendente: Optional[Any] = None
+    x_studio_data_em_processamento_1: Optional[Any] = None
+    x_studio_data_calculo_concluido: Optional[Any] = None
+    x_studio_usuario_calculo_concluido: Optional[Any] = None
     
-    @field_validator(
-        'x_studio_probabilidade', 
-        'x_studio_tipo_de_oportunidade_1',
-        mode='before'
-    )
-    @classmethod
-    def validate_string_fields(cls, v):
-        """Converte False para None em campos de string."""
-        if v is False:
-            return None
-        return v
-    
-    @field_validator(
-        'date_closed',
-        'x_studio_data_calculo_pendente',
-        'x_studio_data_em_processamento_1', 
-        'x_studio_data_calculo_concluido',
-        'x_studio_usuario_calculo_concluido',
-        mode='before'
-    )
-    @classmethod
-    def validate_datetime_fields(cls, v):
-        """Converte False para None e strings para datetime em campos de data."""
-        if v is False:
-            return None
-        if isinstance(v, str):
-            try:
-                return datetime.fromisoformat(v.replace('Z', '+00:00'))
-            except (ValueError, AttributeError):
-                return None
-        return v
+    # Additional fields from JSON
+    probability: Optional[Any] = None
+    partner_name: Optional[Any] = None
+    phone: Optional[Any] = None
+    email_from: Optional[Any] = None
+    street: Optional[Any] = None
+    city: Optional[Any] = None
+    zip: Optional[Any] = None
+    country_id: Optional[Any] = None
 

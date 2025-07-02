@@ -191,6 +191,267 @@ async def create_opportunity_intelligent_async(
         )
 
 
+async def fetch_opportunities_for_powerbi_by_company(company_id: int) -> List[OpportunityPowerBIData]:
+    """
+    Busca oportunidades do CRM filtradas por ID da empresa para PowerBI.
+    
+    Args:
+        company_id: ID da empresa (partner_id) para filtrar as oportunidades.
+    
+    Returns:
+        Lista de OpportunityPowerBIData filtradas pela empresa especificada.
+    """
+    try:
+        odoo_client = await get_odoo_client()
+        
+        fields_to_fetch = [
+            'id', 'create_date', 'name', 'x_studio_tese', 'partner_id', 'partner_name',
+            'user_id', 'team_id', 'activity_ids', 'expected_revenue', 'probability',
+            'stage_id', 'active', 'won_status', 'lost_reason_id', 'state_id',
+            'phone', 'email_from', 'street', 'city', 'zip', 'country_id',
+            'x_studio_previsao_inss', 'x_studio_previsao_ipi', 
+            'x_studio_previsao_irpj_e_csll', 'x_studio_previsao_pis_e_cofins',
+            'x_studio_debitos', 'x_studio_ultima_atualizacao_de_estagio',
+            'x_studio_ticket_de_1_anlise', 'x_studio_ticket_de_2_analise',
+            'x_studio_probabilidade', 'x_studio_receita_bruta_esperada',
+            'x_studio_faturamento_esperado', 'x_studio_honorrios_1',
+            'write_date', 'date_closed', 'x_studio_tipo_de_oportunidade_1',
+            'x_studio_data_calculo_pendente', 'x_studio_data_em_processamento_1',
+            'x_studio_data_calculo_concluido', 'x_studio_usuario_calculo_concluido'
+        ]
+        
+        # Filter opportunities by partner_id (company_id)
+        domain = [['partner_id', '=', company_id]]
+        
+        opportunities_data = await odoo_client.search_read(
+            'crm.lead',
+            domain=domain,
+            fields=fields_to_fetch
+        )
+        
+        if not opportunities_data:
+            logger.info(f"Nenhuma oportunidade encontrada para a empresa ID {company_id}")
+            return []
+        
+        processed_opportunities = []
+        
+        for opp_data in opportunities_data:
+            try:
+                processed_opp = {
+                    'id': opp_data.get('id'),
+                    'create_date': opp_data.get('create_date'),
+                    'name': opp_data.get('name'),
+                    'x_studio_tese': opp_data.get('x_studio_tese'),
+                    'partner_id': _extract_relational_name(opp_data.get('partner_id')),
+                    'partner_name': opp_data.get('partner_name'),
+                    'user_id': _extract_relational_name(opp_data.get('user_id')),
+                    'team_id': _extract_relational_name(opp_data.get('team_id')),
+                    'activity_ids': _format_activity_ids(opp_data.get('activity_ids')),
+                    'expected_revenue': opp_data.get('expected_revenue'),
+                    'probability': opp_data.get('probability'),
+                    'stage_id': _extract_relational_name(opp_data.get('stage_id')),
+                    'state_id': _extract_relational_name(opp_data.get('state_id')),
+                    'active': opp_data.get('active'),
+                    'won_status': opp_data.get('won_status'),
+                    'lost_reason_id': _extract_relational_name(opp_data.get('lost_reason_id')),
+                    'phone': opp_data.get('phone'),
+                    'email_from': opp_data.get('email_from'),
+                    'street': opp_data.get('street'),
+                    'city': opp_data.get('city'),
+                    'zip': opp_data.get('zip'),
+                    'country_id': _extract_relational_name(opp_data.get('country_id')),
+                    'x_studio_previsao_inss': opp_data.get('x_studio_previsao_inss'),
+                    'x_studio_previsao_ipi': opp_data.get('x_studio_previsao_ipi'),
+                    'x_studio_previsao_irpj_e_csll': opp_data.get('x_studio_previsao_irpj_e_csll'),
+                    'x_studio_previsao_pis_e_cofins': opp_data.get('x_studio_previsao_pis_e_cofins'),
+                    'x_studio_debitos': opp_data.get('x_studio_debitos'),
+                    'x_studio_ultima_atualizacao_de_estagio': opp_data.get('x_studio_ultima_atualizacao_de_estagio'),
+                    'x_studio_ticket_de_1_anlise': opp_data.get('x_studio_ticket_de_1_anlise'),
+                    'x_studio_ticket_de_2_analise': opp_data.get('x_studio_ticket_de_2_analise'),
+                    'x_studio_probabilidade': opp_data.get('x_studio_probabilidade'),
+                    'x_studio_receita_bruta_esperada': opp_data.get('x_studio_receita_bruta_esperada'),
+                    'x_studio_faturamento_esperado': opp_data.get('x_studio_faturamento_esperado'),
+                    'x_studio_honorrios_1': opp_data.get('x_studio_honorrios_1'),
+                    'write_date': opp_data.get('write_date'),
+                    'date_closed': opp_data.get('date_closed'),
+                    'x_studio_tipo_de_oportunidade_1': opp_data.get('x_studio_tipo_de_oportunidade_1'),
+                    'x_studio_data_calculo_pendente': opp_data.get('x_studio_data_calculo_pendente'),
+                    'x_studio_data_em_processamento_1': opp_data.get('x_studio_data_em_processamento_1'),
+                    'x_studio_data_calculo_concluido': opp_data.get('x_studio_data_calculo_concluido'),
+                    'x_studio_usuario_calculo_concluido': _extract_relational_name(opp_data.get('x_studio_usuario_calculo_concluido'))
+                }
+                
+                # Get additional partner data if needed
+                partner_id = _extract_relational_id(opp_data.get('partner_id'))
+                if partner_id:
+                    try:
+                        partner_data = await odoo_client.search_read(
+                            'res.partner',
+                            domain=[['id', '=', partner_id]],
+                            fields=['x_studio_categoria_economica']
+                        )
+                        
+                        if partner_data:
+                            partner_info = partner_data[0]
+                            processed_opp['x_studio_categoria_economica'] = partner_info.get('x_studio_categoria_economica')
+                    except Exception as partner_error:
+                        logger.warning(f"Erro ao buscar dados do parceiro {partner_id}: {str(partner_error)}")
+                        processed_opp['x_studio_categoria_economica'] = None
+                else:
+                    processed_opp['x_studio_categoria_economica'] = None
+                
+                processed_opportunities.append(OpportunityPowerBIData(**processed_opp))
+                
+            except Exception as e:
+                logger.error(f"Erro ao processar oportunidade ID {opp_data.get('id', 'N/A')} da empresa {company_id}: {str(e)}")
+                continue
+        
+        logger.info(f"Processadas {len(processed_opportunities)} oportunidades da empresa {company_id} para PowerBI")
+        return processed_opportunities
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar oportunidades da empresa {company_id} para PowerBI: {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar dados das oportunidades da empresa: {str(e)}"
+        )
+
+
+async def fetch_opportunity_by_id_for_powerbi(opportunity_id: int) -> OpportunityPowerBIData:
+    """
+    Busca uma oportunidade específica do CRM por ID para PowerBI.
+    
+    Args:
+        opportunity_id: ID da oportunidade para buscar.
+    
+    Returns:
+        OpportunityPowerBIData da oportunidade especificada.
+    
+    Raises:
+        HTTPException: Se a oportunidade não for encontrada ou houver erro.
+    """
+    try:
+        odoo_client = await get_odoo_client()
+        
+        fields_to_fetch = [
+            'id', 'create_date', 'name', 'x_studio_tese', 'partner_id', 'partner_name',
+            'user_id', 'team_id', 'activity_ids', 'expected_revenue', 'probability',
+            'stage_id', 'active', 'won_status', 'lost_reason_id', 'state_id',
+            'phone', 'email_from', 'street', 'city', 'zip', 'country_id',
+            'x_studio_previsao_inss', 'x_studio_previsao_ipi', 
+            'x_studio_previsao_irpj_e_csll', 'x_studio_previsao_pis_e_cofins',
+            'x_studio_debitos', 'x_studio_ultima_atualizacao_de_estagio',
+            'x_studio_ticket_de_1_anlise', 'x_studio_ticket_de_2_analise',
+            'x_studio_probabilidade', 'x_studio_receita_bruta_esperada',
+            'x_studio_faturamento_esperado', 'x_studio_honorrios_1',
+            'write_date', 'date_closed', 'x_studio_tipo_de_oportunidade_1',
+            'x_studio_data_calculo_pendente', 'x_studio_data_em_processamento_1',
+            'x_studio_data_calculo_concluido', 'x_studio_usuario_calculo_concluido'
+        ]
+        
+        # Search for specific opportunity by ID
+        domain = [['id', '=', opportunity_id]]
+        
+        opportunities_data = await odoo_client.search_read(
+            'crm.lead',
+            domain=domain,
+            fields=fields_to_fetch
+        )
+        
+        if not opportunities_data:
+            logger.warning(f"Oportunidade ID {opportunity_id} não encontrada")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"Oportunidade com ID {opportunity_id} não encontrada"
+            )
+        
+        opp_data = opportunities_data[0]
+        
+        try:
+            processed_opp = {
+                'id': opp_data.get('id'),
+                'create_date': opp_data.get('create_date'),
+                'name': opp_data.get('name'),
+                'x_studio_tese': opp_data.get('x_studio_tese'),
+                'partner_id': _extract_relational_name(opp_data.get('partner_id')),
+                'partner_name': opp_data.get('partner_name'),
+                'user_id': _extract_relational_name(opp_data.get('user_id')),
+                'team_id': _extract_relational_name(opp_data.get('team_id')),
+                'activity_ids': _format_activity_ids(opp_data.get('activity_ids')),
+                'expected_revenue': opp_data.get('expected_revenue'),
+                'probability': opp_data.get('probability'),
+                'stage_id': _extract_relational_name(opp_data.get('stage_id')),
+                'state_id': _extract_relational_name(opp_data.get('state_id')),
+                'active': opp_data.get('active'),
+                'won_status': opp_data.get('won_status'),
+                'lost_reason_id': _extract_relational_name(opp_data.get('lost_reason_id')),
+                'phone': opp_data.get('phone'),
+                'email_from': opp_data.get('email_from'),
+                'street': opp_data.get('street'),
+                'city': opp_data.get('city'),
+                'zip': opp_data.get('zip'),
+                'country_id': _extract_relational_name(opp_data.get('country_id')),
+                'x_studio_previsao_inss': opp_data.get('x_studio_previsao_inss'),
+                'x_studio_previsao_ipi': opp_data.get('x_studio_previsao_ipi'),
+                'x_studio_previsao_irpj_e_csll': opp_data.get('x_studio_previsao_irpj_e_csll'),
+                'x_studio_previsao_pis_e_cofins': opp_data.get('x_studio_previsao_pis_e_cofins'),
+                'x_studio_debitos': opp_data.get('x_studio_debitos'),
+                'x_studio_ultima_atualizacao_de_estagio': opp_data.get('x_studio_ultima_atualizacao_de_estagio'),
+                'x_studio_ticket_de_1_anlise': opp_data.get('x_studio_ticket_de_1_anlise'),
+                'x_studio_ticket_de_2_analise': opp_data.get('x_studio_ticket_de_2_analise'),
+                'x_studio_probabilidade': opp_data.get('x_studio_probabilidade'),
+                'x_studio_receita_bruta_esperada': opp_data.get('x_studio_receita_bruta_esperada'),
+                'x_studio_faturamento_esperado': opp_data.get('x_studio_faturamento_esperado'),
+                'x_studio_honorrios_1': opp_data.get('x_studio_honorrios_1'),
+                'write_date': opp_data.get('write_date'),
+                'date_closed': opp_data.get('date_closed'),
+                'x_studio_tipo_de_oportunidade_1': opp_data.get('x_studio_tipo_de_oportunidade_1'),
+                'x_studio_data_calculo_pendente': opp_data.get('x_studio_data_calculo_pendente'),
+                'x_studio_data_em_processamento_1': opp_data.get('x_studio_data_em_processamento_1'),
+                'x_studio_data_calculo_concluido': opp_data.get('x_studio_data_calculo_concluido'),
+                'x_studio_usuario_calculo_concluido': _extract_relational_name(opp_data.get('x_studio_usuario_calculo_concluido'))
+            }
+            
+            # Get additional partner data if needed
+            partner_id = _extract_relational_id(opp_data.get('partner_id'))
+            if partner_id:
+                try:
+                    partner_data = await odoo_client.search_read(
+                        'res.partner',
+                        domain=[['id', '=', partner_id]],
+                        fields=['x_studio_categoria_economica']
+                    )
+                    
+                    if partner_data:
+                        partner_info = partner_data[0]
+                        processed_opp['x_studio_categoria_economica'] = partner_info.get('x_studio_categoria_economica')
+                except Exception as partner_error:
+                    logger.warning(f"Erro ao buscar dados do parceiro {partner_id}: {str(partner_error)}")
+                    processed_opp['x_studio_categoria_economica'] = None
+            else:
+                processed_opp['x_studio_categoria_economica'] = None
+            
+            opportunity = OpportunityPowerBIData(**processed_opp)
+            logger.info(f"Oportunidade ID {opportunity_id} encontrada e processada para PowerBI")
+            return opportunity
+            
+        except Exception as e:
+            logger.error(f"Erro ao processar oportunidade ID {opportunity_id}: {str(e)}")
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail=f"Erro ao processar dados da oportunidade {opportunity_id}"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao buscar oportunidade ID {opportunity_id} para PowerBI: {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar dados da oportunidade: {str(e)}"
+        )
+
+
 async def fetch_opportunities_for_powerbi() -> List[OpportunityPowerBIData]:
     """
     Busca todas as oportunidades do CRM com todos os campos necessários para PowerBI.
@@ -202,9 +463,10 @@ async def fetch_opportunities_for_powerbi() -> List[OpportunityPowerBIData]:
         odoo_client = await get_odoo_client()
         
         fields_to_fetch = [
-            'id', 'create_date', 'name', 'x_studio_tese', 'partner_id', 
-            'user_id', 'team_id', 'activity_ids', 'expected_revenue', 
-            'stage_id', 'active', 'won_status', 'lost_reason_id',
+            'id', 'create_date', 'name', 'x_studio_tese', 'partner_id', 'partner_name',
+            'user_id', 'team_id', 'activity_ids', 'expected_revenue', 'probability',
+            'stage_id', 'active', 'won_status', 'lost_reason_id', 'state_id',
+            'phone', 'email_from', 'street', 'city', 'zip', 'country_id',
             'x_studio_previsao_inss', 'x_studio_previsao_ipi', 
             'x_studio_previsao_irpj_e_csll', 'x_studio_previsao_pis_e_cofins',
             'x_studio_debitos', 'x_studio_ultima_atualizacao_de_estagio',
@@ -236,14 +498,23 @@ async def fetch_opportunities_for_powerbi() -> List[OpportunityPowerBIData]:
                     'name': opp_data.get('name'),
                     'x_studio_tese': opp_data.get('x_studio_tese'),
                     'partner_id': _extract_relational_name(opp_data.get('partner_id')),
+                    'partner_name': opp_data.get('partner_name'),
                     'user_id': _extract_relational_name(opp_data.get('user_id')),
                     'team_id': _extract_relational_name(opp_data.get('team_id')),
                     'activity_ids': _format_activity_ids(opp_data.get('activity_ids')),
                     'expected_revenue': opp_data.get('expected_revenue'),
-                    'stage_id': opp_data.get('stage_id'),  # Schema validator will handle [ID, Name] format
+                    'probability': opp_data.get('probability'),
+                    'stage_id': _extract_relational_name(opp_data.get('stage_id')),
+                    'state_id': _extract_relational_name(opp_data.get('state_id')),
                     'active': opp_data.get('active'),
                     'won_status': opp_data.get('won_status'),
                     'lost_reason_id': _extract_relational_name(opp_data.get('lost_reason_id')),
+                    'phone': opp_data.get('phone'),
+                    'email_from': opp_data.get('email_from'),
+                    'street': opp_data.get('street'),
+                    'city': opp_data.get('city'),
+                    'zip': opp_data.get('zip'),
+                    'country_id': _extract_relational_name(opp_data.get('country_id')),
                     'x_studio_previsao_inss': opp_data.get('x_studio_previsao_inss'),
                     'x_studio_previsao_ipi': opp_data.get('x_studio_previsao_ipi'),
                     'x_studio_previsao_irpj_e_csll': opp_data.get('x_studio_previsao_irpj_e_csll'),
@@ -252,30 +523,37 @@ async def fetch_opportunities_for_powerbi() -> List[OpportunityPowerBIData]:
                     'x_studio_ultima_atualizacao_de_estagio': opp_data.get('x_studio_ultima_atualizacao_de_estagio'),
                     'x_studio_ticket_de_1_anlise': opp_data.get('x_studio_ticket_de_1_anlise'),
                     'x_studio_ticket_de_2_analise': opp_data.get('x_studio_ticket_de_2_analise'),
-                    'x_studio_probabilidade': opp_data.get('x_studio_probabilidade'),  # Schema validator will handle False
+                    'x_studio_probabilidade': opp_data.get('x_studio_probabilidade'),
                     'x_studio_receita_bruta_esperada': opp_data.get('x_studio_receita_bruta_esperada'),
                     'x_studio_faturamento_esperado': opp_data.get('x_studio_faturamento_esperado'),
                     'x_studio_honorrios_1': opp_data.get('x_studio_honorrios_1'),
                     'write_date': opp_data.get('write_date'),
-                    'date_closed': opp_data.get('date_closed'),  # Schema validator will handle False
-                    'x_studio_tipo_de_oportunidade_1': opp_data.get('x_studio_tipo_de_oportunidade_1'),  # Schema validator will handle False
-                    'x_studio_data_calculo_pendente': opp_data.get('x_studio_data_calculo_pendente'),  # Schema validator will handle False
-                    'x_studio_data_em_processamento_1': opp_data.get('x_studio_data_em_processamento_1'),  # Schema validator will handle False
-                    'x_studio_data_calculo_concluido': opp_data.get('x_studio_data_calculo_concluido'),  # Schema validator will handle False
-                    'x_studio_usuario_calculo_concluido': opp_data.get('x_studio_usuario_calculo_concluido')  # Schema validator will handle False
+                    'date_closed': opp_data.get('date_closed'),
+                    'x_studio_tipo_de_oportunidade_1': opp_data.get('x_studio_tipo_de_oportunidade_1'),
+                    'x_studio_data_calculo_pendente': opp_data.get('x_studio_data_calculo_pendente'),
+                    'x_studio_data_em_processamento_1': opp_data.get('x_studio_data_em_processamento_1'),
+                    'x_studio_data_calculo_concluido': opp_data.get('x_studio_data_calculo_concluido'),
+                    'x_studio_usuario_calculo_concluido': _extract_relational_name(opp_data.get('x_studio_usuario_calculo_concluido'))
                 }
                 
-                if processed_opp['partner_id']:
-                    partner_data = await odoo_client.search_read(
-                        'res.partner',
-                        domain=[['id', '=', _extract_relational_id(opp_data.get('partner_id'))]],
-                        fields=['state_id', 'x_studio_categoria_economica']
-                    )
-                    
-                    if partner_data:
-                        partner_info = partner_data[0]
-                        processed_opp['state_id'] = _extract_relational_name(partner_info.get('state_id'))
-                        processed_opp['x_studio_categoria_economica'] = partner_info.get('x_studio_categoria_economica')
+                # Get additional partner data if partner_id exists
+                partner_id = _extract_relational_id(opp_data.get('partner_id'))
+                if partner_id:
+                    try:
+                        partner_data = await odoo_client.search_read(
+                            'res.partner',
+                            domain=[['id', '=', partner_id]],
+                            fields=['x_studio_categoria_economica']
+                        )
+                        
+                        if partner_data:
+                            partner_info = partner_data[0]
+                            processed_opp['x_studio_categoria_economica'] = partner_info.get('x_studio_categoria_economica')
+                    except Exception as partner_error:
+                        logger.warning(f"Erro ao buscar dados do parceiro {partner_id}: {str(partner_error)}")
+                        processed_opp['x_studio_categoria_economica'] = None
+                else:
+                    processed_opp['x_studio_categoria_economica'] = None
                 
                 processed_opportunities.append(OpportunityPowerBIData(**processed_opp))
                 
@@ -296,6 +574,8 @@ async def fetch_opportunities_for_powerbi() -> List[OpportunityPowerBIData]:
 
 def _extract_relational_name(field_value):
     """Extrai o nome de um campo relacional [ID, 'Nome'] ou retorna None."""
+    if field_value is False:
+        return None
     if isinstance(field_value, list) and len(field_value) >= 2:
         return field_value[1]
     return None
@@ -303,6 +583,8 @@ def _extract_relational_name(field_value):
 
 def _extract_relational_id(field_value):
     """Extrai o ID de um campo relacional [ID, 'Nome'] ou retorna None."""
+    if field_value is False:
+        return None
     if isinstance(field_value, list) and len(field_value) >= 1:
         return field_value[0]
     return None

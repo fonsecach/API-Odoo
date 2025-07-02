@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.schemas import OpportunityPowerBIData
-from app.services.crm_service import fetch_opportunities_for_powerbi
+from app.services.crm_service import fetch_opportunities_for_powerbi, fetch_opportunities_for_powerbi_by_company, fetch_opportunity_by_id_for_powerbi
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix='/opportunities', tags=['Oportunidades'])
@@ -41,6 +41,78 @@ async def get_opportunities_powerbi_endpoint():
         raise HTTPException(
             status_code=500,
             detail="Erro interno do servidor ao buscar dados para PowerBI"
+        )
+
+
+@router.get(
+    '/powerbi/company/{company_id}',
+    summary='Buscar oportunidades de uma empresa específica para PowerBI',
+    description='Endpoint para buscar oportunidades de uma empresa específica formatadas para PowerBI',
+    response_model=List[OpportunityPowerBIData],
+    tags=['PowerBI']
+)
+async def get_opportunities_powerbi_by_company_endpoint(company_id: int):
+    """
+    Retorna todas as oportunidades de uma empresa específica do CRM formatadas para PowerBI.
+    
+    Args:
+        company_id: ID da empresa (partner_id) para filtrar as oportunidades.
+    
+    Returns:
+        Lista de oportunidades da empresa especificada com todos os campos de negócio.
+    """
+    try:
+        opportunities = await fetch_opportunities_for_powerbi_by_company(company_id)
+        
+        if not opportunities:
+            logger.info(f"Nenhuma oportunidade encontrada para a empresa ID {company_id}")
+            return []
+        
+        logger.info(f"Retornando {len(opportunities)} oportunidades da empresa {company_id} para PowerBI")
+        return opportunities
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro inesperado no endpoint PowerBI para empresa {company_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno do servidor ao buscar dados da empresa {company_id} para PowerBI"
+        )
+
+
+@router.get(
+    '/powerbi/{opportunity_id}',
+    summary='Buscar uma oportunidade específica por ID para PowerBI',
+    description='Endpoint para buscar uma oportunidade específica por ID formatada para PowerBI',
+    response_model=OpportunityPowerBIData,
+    tags=['PowerBI']
+)
+async def get_opportunity_powerbi_by_id_endpoint(opportunity_id: int):
+    """
+    Retorna uma oportunidade específica do CRM formatada para PowerBI.
+    
+    Args:
+        opportunity_id: ID da oportunidade para buscar.
+    
+    Returns:
+        OpportunityPowerBIData da oportunidade especificada.
+    
+    Raises:
+        HTTPException: 404 se a oportunidade não for encontrada.
+    """
+    try:
+        opportunity = await fetch_opportunity_by_id_for_powerbi(opportunity_id)
+        logger.info(f"Oportunidade ID {opportunity_id} retornada para PowerBI")
+        return opportunity
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro inesperado no endpoint PowerBI para oportunidade {opportunity_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno do servidor ao buscar oportunidade {opportunity_id} para PowerBI"
         )
 
 
