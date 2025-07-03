@@ -522,19 +522,12 @@ class OpportunityPowerBIData(BaseModel):
     write_date: Optional[Any] = None
     date_closed: Optional[Any] = None
     x_studio_tipo_de_oportunidade_1: Optional[Any] = None
-    x_studio_data_calculo_pendente: Optional[Any] = None
-    x_studio_data_em_processamento_1: Optional[Any] = None
-    x_studio_data_calculo_concluido: Optional[Any] = None
-    x_studio_usuario_calculo_concluido: Optional[Any] = None
     
     # Additional fields from JSON
-    probability: Optional[Any] = None
     phone: Optional[Any] = None
     email_from: Optional[Any] = None
-    street: Optional[Any] = None
     city: Optional[Any] = None
     zip: Optional[Any] = None
-    country_id: Optional[Any] = None
     
     # Stage tracking fields from mail.message
     stage_tracking_calculo_pendente_date: Optional[Any] = None
@@ -586,4 +579,3 @@ class OpportunityPowerBIResponse(BaseModel):
     DataEmProcessamento: Optional[Any] = Field(None, alias="stage_tracking_em_processamento_date")
     DataCalculoConcluido: Optional[Any] = Field(None, alias="stage_tracking_calculo_concluido_date")
     UsuarioRealizouCalculo: Optional[Any] = Field(None, alias="stage_tracking_calculo_pendente_user")
-

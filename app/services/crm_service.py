@@ -224,7 +224,6 @@ async def fetch_opportunities_for_powerbi_with_pt_names() -> List[dict]:
 async def fetch_opportunity_by_id_for_powerbi_with_pt_names(opportunity_id: int) -> dict:
     """
     Busca uma oportunidade específica por ID com campos em português para PowerBI.
-    Remove campos conforme solicitado: probability, street, country_id
     
     Args:
         opportunity_id: ID da oportunidade a ser buscada
@@ -356,8 +355,6 @@ async def fetch_opportunities_for_powerbi_by_company(company_id: int) -> List[Op
             'x_studio_probabilidade', 'x_studio_receita_bruta_esperada',
             'x_studio_faturamento_esperado', 'x_studio_honorrios_1',
             'write_date', 'date_closed', 'x_studio_tipo_de_oportunidade_1',
-            'x_studio_data_calculo_pendente', 'x_studio_data_em_processamento_1',
-            'x_studio_data_calculo_concluido', 'x_studio_usuario_calculo_concluido'
         ]
         
         # Filter opportunities by partner_id (company_id)
@@ -416,10 +413,6 @@ async def fetch_opportunities_for_powerbi_by_company(company_id: int) -> List[Op
                     'write_date': opp_data.get('write_date'),
                     'date_closed': opp_data.get('date_closed'),
                     'x_studio_tipo_de_oportunidade_1': opp_data.get('x_studio_tipo_de_oportunidade_1'),
-                    'x_studio_data_calculo_pendente': opp_data.get('x_studio_data_calculo_pendente'),
-                    'x_studio_data_em_processamento_1': opp_data.get('x_studio_data_em_processamento_1'),
-                    'x_studio_data_calculo_concluido': opp_data.get('x_studio_data_calculo_concluido'),
-                    'x_studio_usuario_calculo_concluido': _extract_relational_name(opp_data.get('x_studio_usuario_calculo_concluido'))
                 }
                 
                 # Get additional partner data if needed
@@ -508,9 +501,7 @@ async def fetch_opportunity_by_id_for_powerbi(opportunity_id: int) -> Opportunit
             'x_studio_ticket_de_1_anlise', 'x_studio_ticket_de_2_analise',
             'x_studio_probabilidade', 'x_studio_receita_bruta_esperada',
             'x_studio_faturamento_esperado', 'x_studio_honorrios_1',
-            'write_date', 'date_closed', 'x_studio_tipo_de_oportunidade_1',
-            'x_studio_data_calculo_pendente', 'x_studio_data_em_processamento_1',
-            'x_studio_data_calculo_concluido', 'x_studio_usuario_calculo_concluido'
+            'write_date', 'date_closed', 'x_studio_tipo_de_oportunidade_1'
         ]
         
         # Search for specific opportunity by ID
@@ -574,10 +565,6 @@ async def fetch_opportunity_by_id_for_powerbi(opportunity_id: int) -> Opportunit
                 'write_date': opp_data.get('write_date'),
                 'date_closed': opp_data.get('date_closed'),
                 'x_studio_tipo_de_oportunidade_1': opp_data.get('x_studio_tipo_de_oportunidade_1'),
-                'x_studio_data_calculo_pendente': opp_data.get('x_studio_data_calculo_pendente'),
-                'x_studio_data_em_processamento_1': opp_data.get('x_studio_data_em_processamento_1'),
-                'x_studio_data_calculo_concluido': opp_data.get('x_studio_data_calculo_concluido'),
-                'x_studio_usuario_calculo_concluido': _extract_relational_name(opp_data.get('x_studio_usuario_calculo_concluido'))
             }
             
             # Get additional partner data if needed
