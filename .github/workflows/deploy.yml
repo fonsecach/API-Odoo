@@ -1,0 +1,124 @@
+name: Fly Deploy
+
+on:
+  push:
+    branches:
+      - release-flyio  # Deploy apenas quando push na branch release-flyio
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Instalar o uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Instalar dependências com uv
+        # 'uv sync' é suficiente aqui, pois ele já instala no ambiente ativo.
+        run: uv sync
+
+      - name: Executar testes com pytest
+        # 'uv run' é perfeito aqui para garantir que o pytest do venv seja usado.
+        run: uv run pytest tests/ -v --tb=short
+
+      - name: Executar testes de validação específicos
+        run: |
+          echo "🧪 Executando testes de validação CPF/CNPJ..."
+          uv run pytest tests/test_opportunities.py::TestValidateCpfCnpj -v
+
+      - name: Executar testes de criação de oportunidades
+        run: |
+          echo "🧪 Executando testes de criação de oportunidades..."
+          uv run pytest tests/test_opportunities.py::TestCreateOpportunityUnified -v
+
+      - name: Verificar exemplos práticos
+        run: |
+          echo "🧪 Verificando exemplos práticos..."
+          uv run pytest tests/test_create_opportunity_examples.py -v
+
+  deploy:
+    name: Deploy app
+    runs-on: ubuntu-latest
+    needs: test
+    # Deploy apenas se estiver na branch release-flyio            
+    if: github.ref == 'refs/heads/release-flyio'
+    environment: production
+    concurrency: 
+      group: deploy-group # Garante que apenas um deploy ocorra por vez
+      cancel-in-progress: true # Cancela deploys antigos se um novo push for feito
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy para Fly.io
+        run: |
+          echo "🚀 Iniciando deploy para Fly.io..."
+          flyctl deploy --remote-only
+          echo "✅ Deploy concluído com sucesso!"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Verificar status da aplicação
+        run: |
+          echo "🔍 Verificando status da aplicação..."
+          flyctl status
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Mostrar logs recentes
+        run: |
+          echo "📋 Logs recentes da aplicação:"
+          flyctl logs -n 20
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  notify:
+    name: Notificar Resultado
+    runs-on: ubuntu-latest
+    needs: [test, deploy]
+    if: always()
+    steps:
+      - name: Resultado dos testes
+        run: |
+          if [ "${{ needs.test.result }}" = "success" ]; then
+            echo "✅ Todos os testes passaram!"
+          else
+            echo "❌ Testes falharam!"
+          fi
+
+      - name: Resultado do deploy
+        if: github.ref == 'refs/heads/release-flyio'
+        run: |
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            echo "🚀 Deploy realizado com sucesso na branch release-flyio!"
+            echo "🌐 Aplicação está disponível no Fly.io"
+          else
+            echo "❌ Deploy falhou!"
+          fi
+
+      - name: Resumo da pipeline
+        run: |
+          echo "## 📊 Resumo da Pipeline CI/CD"
+          echo "**Branch:** ${{ github.ref_name }}"
+          echo "**Commit:** ${{ github.sha }}"
+          echo "**Testes:** ${{ needs.test.result }}"
+          echo "**Deploy:** ${{ needs.deploy.result }}"
+          echo ""
+          if [ "${{ github.ref }}" = "refs/heads/release-flyio" ]; then
+            echo "ℹ️ Esta é a branch de release - deploy executado!"
+          else
+            echo "ℹ️ Branch de desenvolvimento - apenas testes executados"
+          fi

@@ -1,0 +1,203 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+      - master
+      - develop
+      - release-flyio
+
+jobs:
+  validate-pr:
+    name: Validate Pull Request
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Buscar histórico completo para análise
+
+      - name: Instalar o uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Instalar dependências
+        run: uv sync
+
+      - name: Verificar sintaxe Python
+        run: |
+          echo "🔍 Verificando sintaxe Python..."
+          uv run python -m py_compile app/**/*.py
+          echo "✅ Sintaxe Python válida"
+
+      - name: Executar testes rápidos
+        run: |
+          echo "🧪 Executando testes rápidos..."
+          uv run pytest tests/test_opportunities.py::TestValidateCpfCnpj -v
+          echo "✅ Testes de validação passaram"
+
+      - name: Verificar importações críticas
+        run: |
+          echo "📦 Verificando importações críticas..."
+          uv run python -c "
+          import app.main
+          import app.services.crm_service
+          import app.schemas.schemas
+          from app.routers.crm_endpoints import router
+          print('✅ Todas as importações críticas funcionam!')
+          "
+
+      - name: Verificar estrutura da API
+        run: |
+          echo "🌐 Verificando estrutura da API..."
+          uv run python -c "
+          from fastapi.testclient import TestClient
+          from app.main import app
+          
+          client = TestClient(app)
+          response = client.get('/docs')
+          assert response.status_code == 200, 'Docs endpoint não disponível'
+          
+          response = client.get('/health')
+          assert response.status_code == 200, 'Health endpoint não disponível'
+          
+          print('✅ Estrutura da API válida!')
+          "
+
+      - name: Análise de mudanças
+        run: |
+          echo "📊 Analisando mudanças no PR..."
+          
+          # Arquivos modificados
+          git diff --name-only origin/${{ github.base_ref }}..HEAD > changed_files.txt
+          
+          echo "**Arquivos modificados:**"
+          cat changed_files.txt
+          
+          # Verificar se testes foram afetados
+          if grep -q "app/" changed_files.txt; then
+            echo "⚠️ Código da aplicação foi modificado"
+            echo "✅ Executando testes completos..."
+            uv run pytest tests/ -v --tb=short
+          else
+            echo "ℹ️ Apenas arquivos de documentação/config foram modificados"
+          fi
+
+      - name: Verificar commits
+        run: |
+          echo "📝 Verificando formato dos commits..."
+          
+          # Verificar se commits seguem algum padrão
+          git log --oneline origin/${{ github.base_ref }}..HEAD > commits.txt
+          
+          echo "**Commits no PR:**"
+          cat commits.txt
+          
+          # Contagem de commits
+          COMMIT_COUNT=$(wc -l < commits.txt)
+          echo "📊 Total de commits: $COMMIT_COUNT"
+          
+          if [ $COMMIT_COUNT -gt 10 ]; then
+            echo "⚠️ PR com muitos commits ($COMMIT_COUNT). Considere fazer squash."
+          else
+            echo "✅ Número de commits adequado"
+          fi
+
+  security-check:
+    name: Security Check
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Instalar o uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Instalar dependências
+        run: uv sync
+
+      - name: Verificar secrets/senhas hardcoded
+        run: |
+          echo "🔒 Verificando por secrets hardcoded..."
+          
+          # Buscar padrões suspeitos
+          if grep -r -i "password\s*=\s*['\"]" app/ --include="*.py" | grep -v "ODOO_PASSWORD"; then
+            echo "❌ Possível senha hardcoded encontrada!"
+            exit 1
+          fi
+          
+          if grep -r -i "secret\s*=\s*['\"]" app/ --include="*.py"; then
+            echo "❌ Possível secret hardcoded encontrado!"
+            exit 1
+          fi
+          
+          if grep -r -i "token\s*=\s*['\"]" app/ --include="*.py"; then
+            echo "❌ Possível token hardcoded encontrado!"
+            exit 1
+          fi
+          
+          echo "✅ Nenhum secret hardcoded encontrado"
+
+      - name: Verificar dependências vulneráveis
+        run: |
+          echo "🛡️ Verificando dependências vulneráveis..."
+          uv pip install safety
+          uv run safety check || echo "⚠️ Avisos de segurança encontrados - verificar manualmente"
+
+  comment-results:
+    name: Comment Results
+    runs-on: ubuntu-latest
+    needs: [validate-pr, security-check]
+    if: always() && github.event.pull_request.draft == false
+    
+    steps:
+      - name: Comentar resultados
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const validationResult = '${{ needs.validate-pr.result }}';
+            const securityResult = '${{ needs.security-check.result }}';
+            
+            let comment = '## 🔍 Validação do Pull Request\n\n';
+            
+            // Resultados dos jobs
+            comment += '### Resultados:\n';
+            comment += `- **Validação:** ${validationResult === 'success' ? '✅ Passou' : '❌ Falhou'}\n`;
+            comment += `- **Segurança:** ${securityResult === 'success' ? '✅ Passou' : '❌ Falhou'}\n\n`;
+            
+            // Status geral
+            if (validationResult === 'success' && securityResult === 'success') {
+              comment += '🎉 **Todas as verificações passaram!** Este PR está pronto para review.\n\n';
+              comment += '### Próximos passos:\n';
+              comment += '1. ✅ Aguardar review do código\n';
+              comment += '2. ✅ Verificar se os testes passam\n';
+              comment += '3. ✅ Merge quando aprovado\n';
+            } else {
+              comment += '⚠️ **Algumas verificações falharam.** Por favor, verifique os logs e corrija os problemas.\n\n';
+              comment += '### Ações necessárias:\n';
+              if (validationResult !== 'success') {
+                comment += '- ❌ Corrigir problemas de validação\n';
+              }
+              if (securityResult !== 'success') {
+                comment += '- ❌ Resolver problemas de segurança\n';
+              }
+            }
+            
+            comment += '\n---\n';
+            comment += '🤖 *Comentário automático gerado pelo GitHub Actions*';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

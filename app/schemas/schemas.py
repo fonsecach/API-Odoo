@@ -183,10 +183,16 @@ class OpportunityDefault(BaseModel):
     stage_id: int
 
 
-class OpportunityReturn(OpportunityDefault):
+class OpportunityReturn(BaseModel):
     """Modelo de resposta após criação de oportunidade."""
 
     opportunity_id: int
+    name: str
+    partner_id: Optional[int] = None
+    user_id: Optional[int] = None
+    team_id: Optional[int] = None
+    stage_id: Optional[int] = None
+    expected_revenue: Optional[float] = None
 
 
 class OpportunityCreate(BaseModel):
@@ -284,6 +290,40 @@ class OpportunityCreateResponse(BaseModel):
     opportunity_id: int
     opportunity_details: OpportunityReturnDetailed
     attachments: List[AttachmentInfo]
+
+
+class OpportunityCreateUnified(BaseModel):
+    """Schema unificado para criação de oportunidades."""
+    
+    name: str = Field(..., description="Nome da oportunidade (obrigatório)")
+    company_name: Optional[str] = Field(None, description="Nome da empresa")
+    company_cnpj: Optional[str] = Field(None, description="CPF (11 dígitos) ou CNPJ (14 dígitos) com apenas dígitos")
+    team_id: Optional[int] = Field(None, description="ID da equipe de vendas")
+    expected_revenue: Optional[float] = Field(None, description="Receita esperada")
+    x_studio_tese: Optional[str] = Field(None, description="Tese da oportunidade")
+    x_studio_selection_field_37f_1ibrq64l3: Optional[str] = Field(None, description="Parceiro comercial")
+    user_id: int = Field(default=3, description="ID do vendedor responsável")
+    x_studio_identificador_marketing: Optional[str] = Field(None, description="Identificador de marketing")
+    x_studio_origem_marketing: Optional[str] = Field(None, description="Origem de marketing")
+    files: Optional[List[str]] = Field(None, description="Lista de arquivos em base64")
+    
+    class Config:
+        extra = 'allow'
+        schema_extra = {
+            "example": {
+                "name": "Oportunidade de Venda - Empresa Exemplo",
+                "company_name": "EMPRESA EXEMPLO LTDA",
+                "company_cnpj": "12345678000195",  # CNPJ (14 dígitos) ou CPF (11 dígitos): "12345678901"
+                "team_id": 1,
+                "expected_revenue": 50000.00,
+                "x_studio_tese": "Venda de produtos",
+                "x_studio_selection_field_37f_1ibrq64l3": "Parceiro A",
+                "user_id": 3,
+                "x_studio_identificador_marketing": "SITE_2024",
+                "x_studio_origem_marketing": "Website",
+                "files": ["iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAGA..."]
+            }
+        }
 
 
 # ------------ Esquemas de Pedidos de Venda ------------

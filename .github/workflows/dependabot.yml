@@ -1,0 +1,124 @@
+name: Dependabot Auto-merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  test-dependabot:
+    name: Test Dependabot Changes
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Instalar o uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Instalar dependências com uv
+        run: uv sync
+
+      - name: Executar testes completos
+        run: |
+          echo "🧪 Executando testes para verificar compatibilidade das dependências..."
+          uv run pytest tests/ -v --tb=short
+
+      - name: Verificar importações principais
+        run: |
+          echo "🔍 Verificando se as importações principais funcionam..."
+          uv run python -c "
+          try:
+              import app.main
+              import app.services.crm_service
+              import app.schemas.schemas
+              print('✅ Todas as importações principais funcionam!')
+          except ImportError as e:
+              print(f'❌ Erro de importação: {e}')
+              exit(1)
+          "
+
+      - name: Verificar dependências de segurança
+        run: |
+          echo "🔒 Verificando dependências de segurança..."
+          uv pip install safety
+          uv run safety check || echo "⚠️ Aviso de segurança encontrado"
+
+  auto-merge:
+    name: Auto-merge Dependabot PRs
+    runs-on: ubuntu-latest
+    needs: test-dependabot
+    if: github.actor == 'dependabot[bot]' && needs.test-dependabot.result == 'success'
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v1.6.0
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Auto-merge para atualizações menores e patches
+        if: ${{ steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor' }}
+        run: |
+          echo "🤖 Auto-merge habilitado para atualização: ${{ steps.metadata.outputs.update-type }}"
+          echo "📦 Pacote: ${{ steps.metadata.outputs.dependency-names }}"
+          echo "🏷️ Versão: ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}"
+          gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comentar em atualizações maiores
+        if: ${{ steps.metadata.outputs.update-type == 'version-update:semver-major' }}
+        run: |
+          gh pr comment "$PR_URL" --body "
+          🚨 **Atualização Major Detectada**
+          
+          Esta é uma atualização major que pode conter breaking changes:
+          - **Pacote:** ${{ steps.metadata.outputs.dependency-names }}
+          - **Versão:** ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}
+          
+          ⚠️ **Revisão manual necessária** antes do merge.
+          
+          Os testes automatizados passaram, mas recomenda-se:
+          1. Verificar changelog do pacote
+          2. Testar funcionalidades críticas
+          3. Executar testes de integração
+          
+          ✅ Testes automatizados: **PASSOU**
+          "
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-failure:
+    name: Notificar Falha
+    runs-on: ubuntu-latest
+    needs: test-dependabot
+    if: github.actor == 'dependabot[bot]' && needs.test-dependabot.result == 'failure'
+    steps:
+      - name: Comentar falha nos testes
+        run: |
+          gh pr comment "$PR_URL" --body "
+          ❌ **Testes Falharam**
+          
+          A atualização de dependência causou falha nos testes:
+          - **Actor:** ${{ github.actor }}
+          - **Branch:** ${{ github.head_ref }}
+          
+          🔍 **Ações necessárias:**
+          1. Verificar logs de erro na aba Actions
+          2. Revisar breaking changes da dependência
+          3. Ajustar código se necessário
+          4. Re-executar testes localmente
+          
+          ⛔ Auto-merge **BLOQUEADO** até os testes passarem.
+          "
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

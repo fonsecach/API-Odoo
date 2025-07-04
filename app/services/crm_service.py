@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 # Importa as configurações de conexão do Odoo
 from app.config.settings import ODOO_DB, ODOO_PASSWORD, ODOO_URL, ODOO_USERNAME
-from app.schemas.schemas import OpportunityCreateIntelligent, OpportunityPowerBIData
+from app.schemas.schemas import OpportunityCreateIntelligent, OpportunityPowerBIData, OpportunityCreateUnified, OpportunityReturn
 
 # Importa a classe AsyncOdooClient
 from app.services.async_odoo_client import AsyncOdooClient
@@ -69,128 +69,6 @@ def create_opportunity_in_crm(opportunity_info, models, db, uid, password):
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f'Erro ao criar oportunidade: {str(e)}',
         )
-
-
-# --- Função assíncrona para criação inteligente ---
-async def create_opportunity_intelligent_async(
-    opportunity_payload: OpportunityCreateIntelligent
-) -> Optional[Dict[str, Any]]:
-    """
-    Cria uma oportunidade de forma inteligente:
-    1. Verifica/Cria a empresa associada pelo CNPJ.
-    2. Cria a oportunidade no Odoo associada a essa empresa.
-    Args:
-        opportunity_payload: Dados da oportunidade e da empresa.
-    Returns:
-        Um dicionário com os detalhes da oportunidade criada, ou levanta HTTPException em caso de erro.
-    Raises:
-        HTTPException: Em caso de erros específicos (ex: falha ao obter/criar parceiro, erro no Odoo).
-    """
-    # Agora esta chamada funcionará, pois get_odoo_client() está definido acima neste arquivo.
-    odoo_async_client = await get_odoo_client()
-
-    # Passo 1: Obter ou criar o parceiro (empresa)
-    try:
-        partner_id = await get_or_create_partner_by_vat(
-            vat_number=opportunity_payload.company_vat,
-            company_name=opportunity_payload.company_name
-        )
-    except ValueError as ve:  # Erro de validação do VAT (ex: CNPJ inválido)
-        logger.error(f"ValueError ao obter/criar parceiro para VAT {opportunity_payload.company_vat}: {str(ve)}")
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(ve))
-    except Exception as e_partner:  # Outros erros ao obter/criar parceiro
-        logger.exception(f"Erro inesperado ao obter/criar parceiro para VAT {opportunity_payload.company_vat}")
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao processar dados da empresa: {str(e_partner)}"
-        )
-
-    if not partner_id:  # Se get_or_create_partner_by_vat retornar None (apesar de agora levantar exceção)
-        logger.error(f"Não foi possível obter ou criar o parceiro (ID nulo retornado) para VAT {opportunity_payload.company_vat} e nome {opportunity_payload.company_name}.")
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,  # Ou 500 se for uma falha inesperada do serviço de empresa
-            detail=f"Falha ao processar dados da empresa para VAT: {opportunity_payload.company_vat}"
-        )
-
-    # Passo 2: Preparar dados da oportunidade para o Odoo
-    opportunity_data_odoo = {
-        'name': opportunity_payload.name,
-        'partner_id': partner_id,
-        'user_id': opportunity_payload.user_id,
-        'team_id': opportunity_payload.team_id,  # Se opcional e None, será removido abaixo
-        'stage_id': opportunity_payload.stage_id,  # Se opcional e None, será removido abaixo
-        'type': 'opportunity',
-        # Odoo pode interpretar False como "não definido" ou um valor booleano literal.
-        # Se o campo x_studio_tese for um campo de texto, enviar False pode não ser o ideal.
-        # Enviar o valor original ou omitir se None.
-        'x_studio_tese': opportunity_payload.x_studio_tese,
-        'expected_revenue': opportunity_payload.expected_revenue,
-    }
-    # Remove chaves com valor None para que Odoo use seus padrões, se houver.
-    opportunity_data_odoo = {k: v for k, v in opportunity_data_odoo.items() if v is not None}
-
-    # Passo 3: Criar a oportunidade no CRM usando AsyncOdooClient
-    try:
-        opportunity_id = await odoo_async_client.create('crm.lead', opportunity_data_odoo)
-
-        if not opportunity_id:  # Checagem caso o Odoo retorne algo falsy sem erro
-            logger.error(f"Falha ao criar oportunidade '{opportunity_payload.name}' no Odoo (nenhum ID retornado).")
-            raise HTTPException(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail="O Odoo não retornou um ID para a oportunidade criada."
-            )
-
-        logger.info(f"Oportunidade '{opportunity_payload.name}' criada com sucesso, ID: {opportunity_id}.")
-
-        # Passo 4: Ler os dados da oportunidade criada para retornar
-        fields_to_read = ['name', 'partner_id', 'x_studio_tese', 'user_id', 'team_id', 'stage_id', 'expected_revenue']
-        created_opportunity_data_list = await odoo_async_client.search_read(
-            'crm.lead',
-            [['id', '=', opportunity_id]],
-            fields=fields_to_read
-        )
-
-        if not created_opportunity_data_list:
-            logger.error(f"Oportunidade ID {opportunity_id} criada, mas falha ao reler os dados.")
-            # É crítico não conseguir reler, pode indicar um problema.
-            raise HTTPException(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail="Falha ao obter detalhes da oportunidade recém-criada."
-            )
-
-        details = created_opportunity_data_list[0]
-
-        # Função auxiliar para extrair ID de campos relacionais [ID, "Nome"] ou retornar o valor se já for ID
-        def get_id_from_relational(field_value, fallback_id=None):
-            if isinstance(field_value, list) and field_value:
-                return field_value[0]
-            # Se o Odoo não retornar o campo (ex: se era opcional e não foi setado),
-            # podemos usar o fallback_id que veio do payload original (se aplicável e desejado)
-            # ou deixar como None se o schema de retorno permitir.
-            return fallback_id if field_value is False or field_value is None else field_value
-
-        return_data = {
-            "opportunity_id": opportunity_id,
-            "name": details.get('name'),
-            "partner_id": get_id_from_relational(details.get('partner_id'), partner_id),  # partner_id é o ID que já temos
-            "x_studio_tese": details.get('x_studio_tese') if details.get('x_studio_tese') is not False else None,
-            "user_id": get_id_from_relational(details.get('user_id'), opportunity_payload.user_id),
-            "team_id": get_id_from_relational(details.get('team_id'), opportunity_payload.team_id),
-            "stage_id": get_id_from_relational(details.get('stage_id'), opportunity_payload.stage_id),
-            "expected_revenue": details.get('expected_revenue'),
-        }
-        return return_data
-
-    except HTTPException:  # Re-levanta HTTPExceptions já tratadas (ex: de get_or_create_partner_by_vat)
-        raise
-    except Exception as e:  # Captura outras exceções da interação com Odoo (create, search_read)
-        logger.exception(f"Exceção ao interagir com Odoo para oportunidade '{opportunity_payload.name}'")
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao interagir com o Odoo para criar/ler oportunidade: {str(e)}"
-        )
-
-
 
 
 
@@ -668,4 +546,194 @@ async def get_opportunity_stage_tracking_data(opportunity_id: int) -> Dict[str, 
         )
 
 
+import re
+import base64
+
+
+def validate_cpf_cnpj(document: str) -> str:
+    """
+    Valida e limpa CPF ou CNPJ, retornando apenas os dígitos.
+    
+    Args:
+        document: CPF ou CNPJ a ser validado
+        
+    Returns:
+        Documento limpo com apenas dígitos
+        
+    Raises:
+        ValueError: Se o documento for inválido
+    """
+    if not document:
+        raise ValueError("CPF/CNPJ não pode estar vazio")
+    
+    # Remove todos os caracteres não numéricos
+    document_clean = re.sub(r'[^0-9]', '', document)
+    
+    # Verifica se tem 11 dígitos (CPF) ou 14 dígitos (CNPJ)
+    if len(document_clean) == 11:
+        return document_clean  # CPF válido
+    elif len(document_clean) == 14:
+        return document_clean  # CNPJ válido
+    else:
+        raise ValueError("Documento deve conter 11 dígitos (CPF) ou 14 dígitos (CNPJ)")
+    
+    return document_clean
+
+
+async def create_opportunity_unified(opportunity_data: OpportunityCreateUnified) -> OpportunityReturn:
+    """
+    Serviço unificado para criação de oportunidades.
+    
+    Funcionalidades:
+    - Valida CPF/CNPJ se fornecido
+    - Verifica/cria cliente automaticamente se dados fornecidos
+    - Cria oportunidade com campos personalizados
+    - Processa anexos em base64
+    
+    Args:
+        opportunity_data: Dados da oportunidade
+        
+    Returns:
+        Dados da oportunidade criada
+        
+    Raises:
+        HTTPException: Em caso de erro na criação
+    """
+    try:
+        # Obter cliente Odoo
+        odoo_client = await get_odoo_client()
+        
+        partner_id = None
+        
+        # Se company_cnpj foi fornecido, valida e busca/cria parceiro
+        if opportunity_data.company_cnpj:
+            document_clean = validate_cpf_cnpj(opportunity_data.company_cnpj)
+            
+            # Buscar ou criar parceiro/cliente
+            partner_id = await get_or_create_partner_by_vat(
+                vat_number=document_clean,
+                company_name=opportunity_data.company_name or "Cliente"
+            )
+            
+            if not partner_id:
+                logger.error(f"Falha ao obter/criar parceiro para documento {document_clean}")
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail=f"Não foi possível criar/encontrar cliente para documento {document_clean}"
+                )
+        
+        # Preparar dados da oportunidade
+        opp_data = {
+            'name': opportunity_data.name,
+            'user_id': opportunity_data.user_id,
+            'type': 'opportunity',
+            'active': True,
+        }
+        
+        # Adicionar partner_id se foi criado/encontrado
+        if partner_id:
+            opp_data['partner_id'] = partner_id
+        
+        # Adicionar campos opcionais se fornecidos
+        if opportunity_data.team_id:
+            opp_data['team_id'] = opportunity_data.team_id
+        
+        if opportunity_data.expected_revenue is not None:
+            opp_data['expected_revenue'] = opportunity_data.expected_revenue
+        
+        if opportunity_data.x_studio_tese:
+            opp_data['x_studio_tese'] = opportunity_data.x_studio_tese
+        
+        if opportunity_data.x_studio_selection_field_37f_1ibrq64l3:
+            opp_data['x_studio_selection_field_37f_1ibrq64l3'] = opportunity_data.x_studio_selection_field_37f_1ibrq64l3
+        
+        if opportunity_data.x_studio_identificador_marketing:
+            opp_data['x_studio_identificador_marketing'] = opportunity_data.x_studio_identificador_marketing
+        
+        if opportunity_data.x_studio_origem_marketing:
+            opp_data['x_studio_origem_marketing'] = opportunity_data.x_studio_origem_marketing
+        
+        # Criar oportunidade
+        opportunity_id = await odoo_client.create('crm.lead', opp_data)
+        
+        if not opportunity_id:
+            logger.error(f"Falha ao criar oportunidade para {opportunity_data.company_name}")
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Não foi possível criar a oportunidade"
+            )
+        
+        # Processar anexos se fornecidos
+        if opportunity_data.files:
+            for i, file_base64 in enumerate(opportunity_data.files):
+                try:
+                    # Decodificar base64
+                    file_data = base64.b64decode(file_base64)
+                    
+                    # Criar anexo
+                    attachment_data = {
+                        'name': f"attachment_{i+1}_{opportunity_id}.pdf",
+                        'datas': file_base64,
+                        'res_model': 'crm.lead',
+                        'res_id': opportunity_id,
+                        'type': 'binary'
+                    }
+                    
+                    attachment_id = await odoo_client.create('ir.attachment', attachment_data)
+                    logger.info(f"Anexo {attachment_id} criado para oportunidade {opportunity_id}")
+                    
+                except Exception as e:
+                    logger.warning(f"Erro ao processar anexo {i+1} para oportunidade {opportunity_id}: {str(e)}")
+                    # Continua o processamento mesmo com erro no anexo
+        
+        # Buscar dados da oportunidade criada para retorno
+        opportunity_details = await odoo_client.search_read(
+            'crm.lead',
+            domain=[['id', '=', opportunity_id]],
+            fields=['name', 'partner_id', 'user_id', 'team_id', 'stage_id', 'expected_revenue']
+        )
+        
+        if not opportunity_details:
+            logger.error(f"Não foi possível buscar detalhes da oportunidade {opportunity_id}")
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail="Oportunidade criada mas não foi possível buscar detalhes"
+            )
+        
+        details = opportunity_details[0]
+        
+        # Função auxiliar para extrair ID de campos relacionais
+        def extract_id(field_value):
+            if isinstance(field_value, list) and field_value:
+                return field_value[0]
+            return field_value if field_value not in [False, None] else None
+        
+        # Preparar dados de retorno
+        return_data = {
+            'opportunity_id': opportunity_id,
+            'name': details.get('name'),
+            'partner_id': extract_id(details.get('partner_id')),
+            'user_id': extract_id(details.get('user_id')),
+            'team_id': extract_id(details.get('team_id')),
+            'stage_id': extract_id(details.get('stage_id')),
+            'expected_revenue': details.get('expected_revenue', 0.0),
+        }
+        
+        logger.info(f"Oportunidade {opportunity_id} criada com sucesso: {opportunity_data.name}")
+        return OpportunityReturn(**return_data)
+        
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        logger.error(f"Erro de validação: {str(ve)}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=str(ve)
+        )
+    except Exception as e:
+        logger.exception(f"Erro inesperado ao criar oportunidade: {opportunity_data.name}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Erro interno ao criar oportunidade: {str(e)}"
+        )
 
