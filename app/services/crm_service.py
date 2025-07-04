@@ -250,37 +250,6 @@ async def fetch_opportunity_by_id_for_powerbi_with_pt_names(opportunity_id: int)
         )
 
 
-async def fetch_opportunities_for_powerbi_by_company_with_pt_names(company_id: int) -> List[dict]:
-    """
-    Busca oportunidades do CRM filtradas por ID da empresa com campos em português para PowerBI.
-    Remove campos conforme solicitado: probability, street, country_id
-    
-    Args:
-        company_id: ID da empresa para filtrar as oportunidades
-        
-    Returns:
-        Lista de dicionários com dados das oportunidades com nomes em português.
-    """
-    try:
-        # Usa a função existente para buscar dados processados
-        opportunities_data = await fetch_opportunities_for_powerbi_by_company(company_id)
-        
-        # Mapeia para o formato com nomes em português
-        portuguese_opportunities = []
-        for opp in opportunities_data:
-            opp_dict = opp.dict() if hasattr(opp, 'dict') else opp
-            mapped_opp = _map_to_powerbi_response(opp_dict)
-            portuguese_opportunities.append(mapped_opp)
-        
-        logger.info(f"Processadas {len(portuguese_opportunities)} oportunidades da empresa {company_id} com nomes em português para PowerBI")
-        return portuguese_opportunities
-        
-    except Exception as e:
-        logger.error(f"Erro ao buscar oportunidades da empresa {company_id} com nomes em português para PowerBI: {str(e)}")
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao buscar dados das oportunidades: {str(e)}"
-        )
 
 
 def _map_to_powerbi_response(processed_opp: dict) -> dict:
@@ -323,155 +292,13 @@ def _map_to_powerbi_response(processed_opp: dict) -> dict:
         'Email': processed_opp.get('email_from'),
         'Cidade': processed_opp.get('city'),
         'CEP': processed_opp.get('zip'),
-        'DataCalculoPendente': processed_opp.get('stage_tracking_calculo_pendente_date'),
-        'DataEmProcessamento': processed_opp.get('stage_tracking_em_processamento_date'),
-        'DataCalculoConcluido': processed_opp.get('stage_tracking_calculo_concluido_date'),
-        'UsuarioRealizouCalculo': processed_opp.get('stage_tracking_calculo_pendente_user')
+        'DataCalculoPendente': processed_opp.get('x_studio_data_calculo_pendente'),
+        'DataEmProcessamento': processed_opp.get('x_studio_data_em_processamento_1'),
+        'DataCalculoConcluido': processed_opp.get('x_studio_data_calculo_concluido'),
+        'UsuarioCalculoConcluido': processed_opp.get('x_studio_usuario_calculo_concluido'),
     }
 
 
-async def fetch_opportunities_for_powerbi_by_company(company_id: int) -> List[OpportunityPowerBIData]:
-    """
-    Busca oportunidades do CRM filtradas por ID da empresa para PowerBI.
-    
-    Args:
-        company_id: ID da empresa (partner_id) para filtrar as oportunidades.
-    
-    Returns:
-        Lista de OpportunityPowerBIData filtradas pela empresa especificada.
-    """
-    try:
-        odoo_client = await get_odoo_client()
-        
-        fields_to_fetch = [
-            'id', 'create_date', 'name', 'x_studio_tese', 'partner_id',
-            'user_id', 'team_id', 'activity_ids', 'expected_revenue',
-            'stage_id', 'active', 'won_status', 'lost_reason_id', 'state_id',
-            'phone', 'email_from', 'city', 'zip',
-            'x_studio_previsao_inss', 'x_studio_previsao_ipi', 
-            'x_studio_previsao_irpj_e_csll', 'x_studio_previsao_pis_e_cofins',
-            'x_studio_debitos', 'x_studio_ultima_atualizacao_de_estagio',
-            'x_studio_ticket_de_1_anlise', 'x_studio_ticket_de_2_analise',
-            'x_studio_probabilidade', 'x_studio_receita_bruta_esperada',
-            'x_studio_faturamento_esperado', 'x_studio_honorrios_1',
-            'write_date', 'date_closed', 'x_studio_tipo_de_oportunidade_1',
-        ]
-        
-        # Filter opportunities by partner_id (company_id)
-        domain = [['partner_id', '=', company_id]]
-        
-        opportunities_data = await odoo_client.search_read(
-            'crm.lead',
-            domain=domain,
-            fields=fields_to_fetch
-        )
-        
-        if not opportunities_data:
-            logger.info(f"Nenhuma oportunidade encontrada para a empresa ID {company_id}")
-            return []
-        
-        processed_opportunities = []
-        
-        for opp_data in opportunities_data:
-            try:
-                # Get field descriptions for selection fields
-                x_studio_tese_desc = await _get_selection_field_description(
-                    odoo_client, 'crm.lead', 'x_studio_tese', opp_data.get('x_studio_tese')
-                )
-                
-                processed_opp = {
-                    'id': opp_data.get('id'),
-                    'create_date': opp_data.get('create_date'),
-                    'name': opp_data.get('name'),
-                    'x_studio_tese': x_studio_tese_desc,
-                    'partner_id': _extract_relational_name(opp_data.get('partner_id')),
-                    'user_id': _extract_relational_name(opp_data.get('user_id')),
-                    'team_id': _extract_relational_name(opp_data.get('team_id')),
-                    'activity_ids': await _get_latest_activity_summary(odoo_client, opp_data.get('activity_ids')),
-                    'expected_revenue': opp_data.get('expected_revenue'),
-                    'stage_id': _extract_relational_name(opp_data.get('stage_id')),
-                    'state_id': _extract_relational_name(opp_data.get('state_id')),
-                    'active': opp_data.get('active'),
-                    'won_status': opp_data.get('won_status'),
-                    'lost_reason_id': _extract_relational_name(opp_data.get('lost_reason_id')),
-                    'phone': opp_data.get('phone'),
-                    'email_from': opp_data.get('email_from'),
-                    'city': opp_data.get('city'),
-                    'zip': opp_data.get('zip'),
-                    'x_studio_previsao_inss': opp_data.get('x_studio_previsao_inss'),
-                    'x_studio_previsao_ipi': opp_data.get('x_studio_previsao_ipi'),
-                    'x_studio_previsao_irpj_e_csll': opp_data.get('x_studio_previsao_irpj_e_csll'),
-                    'x_studio_previsao_pis_e_cofins': opp_data.get('x_studio_previsao_pis_e_cofins'),
-                    'x_studio_debitos': opp_data.get('x_studio_debitos'),
-                    'x_studio_ultima_atualizacao_de_estagio': opp_data.get('x_studio_ultima_atualizacao_de_estagio'),
-                    'x_studio_ticket_de_1_anlise': opp_data.get('x_studio_ticket_de_1_anlise'),
-                    'x_studio_ticket_de_2_analise': opp_data.get('x_studio_ticket_de_2_analise'),
-                    'x_studio_probabilidade': opp_data.get('x_studio_probabilidade'),
-                    'x_studio_receita_bruta_esperada': opp_data.get('x_studio_receita_bruta_esperada'),
-                    'x_studio_faturamento_esperado': opp_data.get('x_studio_faturamento_esperado'),
-                    'x_studio_honorrios_1': opp_data.get('x_studio_honorrios_1'),
-                    'write_date': opp_data.get('write_date'),
-                    'date_closed': opp_data.get('date_closed'),
-                    'x_studio_tipo_de_oportunidade_1': opp_data.get('x_studio_tipo_de_oportunidade_1'),
-                }
-                
-                # Get additional partner data if needed
-                partner_id = _extract_relational_id(opp_data.get('partner_id'))
-                if partner_id:
-                    try:
-                        partner_data = await odoo_client.search_read(
-                            'res.partner',
-                            domain=[['id', '=', partner_id]],
-                            fields=['x_studio_categoria_economica']
-                        )
-                        
-                        if partner_data:
-                            partner_info = partner_data[0]
-                            # Get categoria economica description
-                            categoria_desc = await _get_selection_field_description(
-                                odoo_client, 'res.partner', 'x_studio_categoria_economica', 
-                                partner_info.get('x_studio_categoria_economica')
-                            )
-                            processed_opp['x_studio_categoria_economica'] = categoria_desc
-                    except Exception as partner_error:
-                        logger.warning(f"Erro ao buscar dados do parceiro {partner_id}: {str(partner_error)}")
-                        processed_opp['x_studio_categoria_economica'] = None
-                else:
-                    processed_opp['x_studio_categoria_economica'] = None
-                
-                # Get stage tracking data from mail.message
-                try:
-                    tracking_data = await get_opportunity_stage_tracking_data(opp_data.get('id'))
-                    processed_opp.update({
-                        'stage_tracking_calculo_pendente_date': tracking_data.get('calculo_pendente_date'),
-                        'stage_tracking_em_processamento_date': tracking_data.get('em_processamento_date'),
-                        'stage_tracking_calculo_concluido_date': tracking_data.get('calculo_concluido_date'),
-                        'stage_tracking_calculo_pendente_user': tracking_data.get('calculo_pendente_user')
-                    })
-                except Exception as tracking_error:
-                    logger.warning(f"Erro ao buscar dados de rastreamento para oportunidade {opp_data.get('id')}: {str(tracking_error)}")
-                    processed_opp.update({
-                        'stage_tracking_calculo_pendente_date': None,
-                        'stage_tracking_em_processamento_date': None,
-                        'stage_tracking_calculo_concluido_date': None,
-                        'stage_tracking_calculo_pendente_user': None
-                    })
-                
-                processed_opportunities.append(OpportunityPowerBIData(**processed_opp))
-                
-            except Exception as e:
-                logger.error(f"Erro ao processar oportunidade ID {opp_data.get('id', 'N/A')} da empresa {company_id}: {str(e)}")
-                continue
-        
-        logger.info(f"Processadas {len(processed_opportunities)} oportunidades da empresa {company_id} para PowerBI")
-        return processed_opportunities
-        
-    except Exception as e:
-        logger.error(f"Erro ao buscar oportunidades da empresa {company_id} para PowerBI: {str(e)}")
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao buscar dados das oportunidades da empresa: {str(e)}"
-        )
 
 
 async def fetch_opportunity_by_id_for_powerbi(opportunity_id: int) -> OpportunityPowerBIData:
@@ -501,7 +328,9 @@ async def fetch_opportunity_by_id_for_powerbi(opportunity_id: int) -> Opportunit
             'x_studio_ticket_de_1_anlise', 'x_studio_ticket_de_2_analise',
             'x_studio_probabilidade', 'x_studio_receita_bruta_esperada',
             'x_studio_faturamento_esperado', 'x_studio_honorrios_1',
-            'write_date', 'date_closed', 'x_studio_tipo_de_oportunidade_1'
+            'write_date', 'date_closed', 'x_studio_tipo_de_oportunidade_1',
+            'x_studio_data_calculo_pendente', 'x_studio_data_em_processamento_1',
+            'x_studio_data_calculo_concluido', 'x_studio_usuario_calculo_concluido'
         ]
         
         # Search for specific opportunity by ID
@@ -565,6 +394,12 @@ async def fetch_opportunity_by_id_for_powerbi(opportunity_id: int) -> Opportunit
                 'write_date': opp_data.get('write_date'),
                 'date_closed': opp_data.get('date_closed'),
                 'x_studio_tipo_de_oportunidade_1': opp_data.get('x_studio_tipo_de_oportunidade_1'),
+                'x_studio_data_calculo_pendente': opp_data.get('x_studio_data_calculo_pendente'),
+                'x_studio_data_em_processamento_1': opp_data.get('x_studio_data_em_processamento_1'),
+                'x_studio_data_calculo_concluido': opp_data.get('x_studio_data_calculo_concluido'),
+                'x_studio_usuario_calculo_concluido': _extract_relational_name(opp_data.get('x_studio_usuario_calculo_concluido')),
+                'x_studio_usuario_calculo_pendente': _extract_relational_name(opp_data.get('x_studio_usuario_calculo_pendente')),
+                'x_studio_usuario_em_processamento': _extract_relational_name(opp_data.get('x_studio_usuario_em_processamento'))
             }
             
             # Get additional partner data if needed
@@ -743,18 +578,46 @@ async def fetch_opportunities_for_powerbi() -> List[OpportunityPowerBIData]:
                 try:
                     tracking_data = await get_opportunity_stage_tracking_data(opp_data.get('id'))
                     processed_opp.update({
+                        'stage_tracking_prospect_date': tracking_data.get('prospect_date'),
+                        'stage_tracking_prospect_user': tracking_data.get('prospect_user'),
+                        'stage_tracking_primeira_reuniao_date': tracking_data.get('primeira_reuniao_date'),
+                        'stage_tracking_primeira_reuniao_user': tracking_data.get('primeira_reuniao_user'),
+                        'stage_tracking_aguardando_documentacao_date': tracking_data.get('aguardando_documentacao_date'),
+                        'stage_tracking_aguardando_documentacao_user': tracking_data.get('aguardando_documentacao_user'),
                         'stage_tracking_calculo_pendente_date': tracking_data.get('calculo_pendente_date'),
+                        'stage_tracking_calculo_pendente_user': tracking_data.get('calculo_pendente_user'),
                         'stage_tracking_em_processamento_date': tracking_data.get('em_processamento_date'),
+                        'stage_tracking_em_processamento_user': tracking_data.get('em_processamento_user'),
                         'stage_tracking_calculo_concluido_date': tracking_data.get('calculo_concluido_date'),
-                        'stage_tracking_calculo_pendente_user': tracking_data.get('calculo_pendente_user')
+                        'stage_tracking_calculo_concluido_user': tracking_data.get('calculo_concluido_user'),
+                        'stage_tracking_revisao_de_calculo_date': tracking_data.get('revisao_de_calculo_date'),
+                        'stage_tracking_revisao_de_calculo_user': tracking_data.get('revisao_de_calculo_user'),
+                        'stage_tracking_apresentacao_date': tracking_data.get('apresentacao_date'),
+                        'stage_tracking_apresentacao_user': tracking_data.get('apresentacao_user'),
+                        'stage_tracking_em_negociacao_date': tracking_data.get('em_negociacao_date'),
+                        'stage_tracking_em_negociacao_user': tracking_data.get('em_negociacao_user')
                     })
                 except Exception as tracking_error:
                     logger.warning(f"Erro ao buscar dados de rastreamento para oportunidade {opp_data.get('id')}: {str(tracking_error)}")
                     processed_opp.update({
+                        'stage_tracking_prospect_date': None,
+                        'stage_tracking_prospect_user': None,
+                        'stage_tracking_primeira_reuniao_date': None,
+                        'stage_tracking_primeira_reuniao_user': None,
+                        'stage_tracking_aguardando_documentacao_date': None,
+                        'stage_tracking_aguardando_documentacao_user': None,
                         'stage_tracking_calculo_pendente_date': None,
+                        'stage_tracking_calculo_pendente_user': None,
                         'stage_tracking_em_processamento_date': None,
+                        'stage_tracking_em_processamento_user': None,
                         'stage_tracking_calculo_concluido_date': None,
-                        'stage_tracking_calculo_pendente_user': None
+                        'stage_tracking_calculo_concluido_user': None,
+                        'stage_tracking_revisao_de_calculo_date': None,
+                        'stage_tracking_revisao_de_calculo_user': None,
+                        'stage_tracking_apresentacao_date': None,
+                        'stage_tracking_apresentacao_user': None,
+                        'stage_tracking_em_negociacao_date': None,
+                        'stage_tracking_em_negociacao_user': None
                     })
                 
                 processed_opportunities.append(OpportunityPowerBIData(**processed_opp))
@@ -775,11 +638,13 @@ async def fetch_opportunities_for_powerbi() -> List[OpportunityPowerBIData]:
 
 
 def _extract_relational_name(field_value):
-    """Extrai o nome de um campo relacional [ID, 'Nome'] ou retorna None."""
+    """Extrai o nome de um campo relacional [ID, 'Nome'] ou retorna o valor se for string."""
     if field_value is False:
         return None
     if isinstance(field_value, list) and len(field_value) >= 2:
         return field_value[1]
+    if isinstance(field_value, str):
+        return field_value
     return None
 
 
@@ -896,10 +761,24 @@ async def get_opportunity_stage_tracking_data(opportunity_id: int) -> Dict[str, 
     Returns:
         Dicionário com as datas dos estágios e informações do usuário:
         {
+            'prospect_date': datetime ou None,
+            'prospect_user': str ou None,
+            'primeira_reuniao_date': datetime ou None,
+            'primeira_reuniao_user': str ou None,
+            'aguardando_documentacao_date': datetime ou None,
+            'aguardando_documentacao_user': str ou None,
             'calculo_pendente_date': datetime ou None,
+            'calculo_pendente_user': str ou None,
             'em_processamento_date': datetime ou None, 
+            'em_processamento_user': str ou None,
             'calculo_concluido_date': datetime ou None,
-            'calculo_pendente_user': str ou None
+            'calculo_concluido_user': str ou None,
+            'revisao_de_calculo_date': datetime ou None,
+            'revisao_de_calculo_user': str ou None,
+            'apresentacao_date': datetime ou None,
+            'apresentacao_user': str ou None,
+            'em_negociacao_date': datetime ou None,
+            'em_negociacao_user': str ou None
         }
     """
     try:
@@ -989,14 +868,31 @@ async def get_opportunity_stage_tracking_data(opportunity_id: int) -> Dict[str, 
         
         # Inicializar resultado
         tracking_data = {
+            'prospect_date': None,
+            'prospect_user': None,
+            'primeira_reuniao_date': None,
+            'primeira_reuniao_user': None,
+            'aguardando_documentacao_date': None,
+            'aguardando_documentacao_user': None,
             'calculo_pendente_date': None,
+            'calculo_pendente_user': None,
             'em_processamento_date': None,
+            'em_processamento_user': None,
             'calculo_concluido_date': None,
-            'calculo_pendente_user': None
+            'calculo_concluido_user': None,
+            'revisao_de_calculo_date': None,
+            'revisao_de_calculo_user': None,
+            'apresentacao_date': None,
+            'apresentacao_user': None,
+            'em_negociacao_date': None,
+            'em_negociacao_user': None
         }
         
         # Buscar nomes dos estágios no sistema para mapear IDs para nomes
         stage_names = await _get_stage_names(odoo_client)
+        
+        # Primeiro, coletar todas as mudanças de estágio e ordenar por data
+        stage_changes = []
         
         # Processar tracking values das mensagens de mudança de estágio
         for tracking in relevant_tracking:
@@ -1020,19 +916,68 @@ async def get_opportunity_stage_tracking_data(opportunity_id: int) -> Dict[str, 
                     
                     logger.debug(f"Stage tracking encontrado: {old_value} → {new_value} em {message_date}")
                     
-                    # Verificar mudanças para estágios específicos
-                    if _stage_matches_target(new_value, 'Cálculo pendente', stage_names):
-                        if not tracking_data['calculo_pendente_date']:
-                            tracking_data['calculo_pendente_date'] = message_date
-                            tracking_data['calculo_pendente_user'] = _extract_relational_name(author_id)
-                            
-                    elif _stage_matches_target(new_value, 'Em processamento', stage_names):
-                        if not tracking_data['em_processamento_date']:
-                            tracking_data['em_processamento_date'] = message_date
-                            
-                    elif _stage_matches_target(new_value, 'Cálculo concluído', stage_names):
-                        if not tracking_data['calculo_concluido_date']:
-                            tracking_data['calculo_concluido_date'] = message_date
+                    # Adicionar mudança à lista para processamento posterior
+                    stage_changes.append({
+                        'date': message_date,
+                        'new_value': new_value,
+                        'author_id': author_id
+                    })
+                    
+        
+        # Ordenar mudanças por data (mais recentes primeiro)
+        stage_changes.sort(key=lambda x: x['date'], reverse=True)
+        
+        # Processar mudanças ordenadas para capturar sempre a mais recente de cada estágio
+        for change in stage_changes:
+            message_date = change['date']
+            new_value = change['new_value']
+            author_id = change['author_id']
+            
+            # Verificar mudanças para estágios específicos (sempre atualizar com a mais recente)
+            if _stage_matches_target(new_value, 'Prospect', stage_names):
+                if not tracking_data['prospect_date'] or message_date > tracking_data['prospect_date']:
+                    tracking_data['prospect_date'] = message_date
+                    tracking_data['prospect_user'] = _extract_relational_name(author_id)
+                    
+            elif _stage_matches_target(new_value, 'Primeira reunião', stage_names):
+                if not tracking_data['primeira_reuniao_date'] or message_date > tracking_data['primeira_reuniao_date']:
+                    tracking_data['primeira_reuniao_date'] = message_date
+                    tracking_data['primeira_reuniao_user'] = _extract_relational_name(author_id)
+                    
+            elif _stage_matches_target(new_value, 'Aguardando documentação', stage_names):
+                if not tracking_data['aguardando_documentacao_date'] or message_date > tracking_data['aguardando_documentacao_date']:
+                    tracking_data['aguardando_documentacao_date'] = message_date
+                    tracking_data['aguardando_documentacao_user'] = _extract_relational_name(author_id)
+                    
+            elif _stage_matches_target(new_value, 'Cálculo pendente', stage_names):
+                if not tracking_data['calculo_pendente_date'] or message_date > tracking_data['calculo_pendente_date']:
+                    tracking_data['calculo_pendente_date'] = message_date
+                    tracking_data['calculo_pendente_user'] = _extract_relational_name(author_id)
+                    
+            elif _stage_matches_target(new_value, 'Em processamento', stage_names):
+                if not tracking_data['em_processamento_date'] or message_date > tracking_data['em_processamento_date']:
+                    tracking_data['em_processamento_date'] = message_date
+                    tracking_data['em_processamento_user'] = _extract_relational_name(author_id)
+                    
+            elif _stage_matches_target(new_value, 'Cálculo concluído', stage_names):
+                if not tracking_data['calculo_concluido_date'] or message_date > tracking_data['calculo_concluido_date']:
+                    tracking_data['calculo_concluido_date'] = message_date
+                    tracking_data['calculo_concluido_user'] = _extract_relational_name(author_id)
+                    
+            elif _stage_matches_target(new_value, 'Revisão de cálculo', stage_names):
+                if not tracking_data['revisao_de_calculo_date'] or message_date > tracking_data['revisao_de_calculo_date']:
+                    tracking_data['revisao_de_calculo_date'] = message_date
+                    tracking_data['revisao_de_calculo_user'] = _extract_relational_name(author_id)
+                    
+            elif _stage_matches_target(new_value, 'Apresentação', stage_names):
+                if not tracking_data['apresentacao_date'] or message_date > tracking_data['apresentacao_date']:
+                    tracking_data['apresentacao_date'] = message_date
+                    tracking_data['apresentacao_user'] = _extract_relational_name(author_id)
+                    
+            elif _stage_matches_target(new_value, 'Em negociação', stage_names):
+                if not tracking_data['em_negociacao_date'] or message_date > tracking_data['em_negociacao_date']:
+                    tracking_data['em_negociacao_date'] = message_date
+                    tracking_data['em_negociacao_user'] = _extract_relational_name(author_id)
         
         # Se não encontrou tracking nas mensagens de "Estágio alterado", usar estratégia alternativa
         if not any(tracking_data.values()):
@@ -1051,6 +996,9 @@ async def get_opportunity_stage_tracking_data(opportunity_id: int) -> Dict[str, 
             )
             
             logger.debug(f"Encontradas {len(all_messages_with_tracking)} mensagens com tracking values (método alternativo)")
+            
+            # Coletar mudanças do método alternativo
+            alternative_changes = []
             
             # Processar essas mensagens com a mesma lógica
             for msg in all_messages_with_tracking:
@@ -1083,23 +1031,73 @@ async def get_opportunity_stage_tracking_data(opportunity_id: int) -> Dict[str, 
                                 
                                 logger.debug(f"Alternative stage tracking: → {new_value} em {message_date}")
                                 
-                                # Verificar mudanças para estágios específicos
-                                if _stage_matches_target(new_value, 'Cálculo pendente', stage_names):
-                                    if not tracking_data['calculo_pendente_date']:
-                                        tracking_data['calculo_pendente_date'] = message_date
-                                        tracking_data['calculo_pendente_user'] = _extract_relational_name(author_id)
-                                        
-                                elif _stage_matches_target(new_value, 'Em processamento', stage_names):
-                                    if not tracking_data['em_processamento_date']:
-                                        tracking_data['em_processamento_date'] = message_date
-                                        
-                                elif _stage_matches_target(new_value, 'Cálculo concluído', stage_names):
-                                    if not tracking_data['calculo_concluido_date']:
-                                        tracking_data['calculo_concluido_date'] = message_date
+                                # Adicionar à lista de mudanças alternativas
+                                alternative_changes.append({
+                                    'date': message_date,
+                                    'new_value': new_value,
+                                    'author_id': author_id
+                                })
+            
+            # Ordenar mudanças alternativas por data (mais recentes primeiro)
+            alternative_changes.sort(key=lambda x: x['date'], reverse=True)
+            
+            # Processar mudanças alternativas ordenadas
+            for change in alternative_changes:
+                message_date = change['date']
+                new_value = change['new_value']
+                author_id = change['author_id']
+                
+                # Verificar mudanças para estágios específicos (sempre atualizar com a mais recente)
+                if _stage_matches_target(new_value, 'Prospect', stage_names):
+                    if not tracking_data['prospect_date'] or message_date > tracking_data['prospect_date']:
+                        tracking_data['prospect_date'] = message_date
+                        tracking_data['prospect_user'] = _extract_relational_name(author_id)
+                        
+                elif _stage_matches_target(new_value, 'Primeira reunião', stage_names):
+                    if not tracking_data['primeira_reuniao_date'] or message_date > tracking_data['primeira_reuniao_date']:
+                        tracking_data['primeira_reuniao_date'] = message_date
+                        tracking_data['primeira_reuniao_user'] = _extract_relational_name(author_id)
+                        
+                elif _stage_matches_target(new_value, 'Aguardando documentação', stage_names):
+                    if not tracking_data['aguardando_documentacao_date'] or message_date > tracking_data['aguardando_documentacao_date']:
+                        tracking_data['aguardando_documentacao_date'] = message_date
+                        tracking_data['aguardando_documentacao_user'] = _extract_relational_name(author_id)
+                        
+                elif _stage_matches_target(new_value, 'Cálculo pendente', stage_names):
+                    if not tracking_data['calculo_pendente_date'] or message_date > tracking_data['calculo_pendente_date']:
+                        tracking_data['calculo_pendente_date'] = message_date
+                        tracking_data['calculo_pendente_user'] = _extract_relational_name(author_id)
+                        
+                elif _stage_matches_target(new_value, 'Em processamento', stage_names):
+                    if not tracking_data['em_processamento_date'] or message_date > tracking_data['em_processamento_date']:
+                        tracking_data['em_processamento_date'] = message_date
+                        tracking_data['em_processamento_user'] = _extract_relational_name(author_id)
+                        
+                elif _stage_matches_target(new_value, 'Cálculo concluído', stage_names):
+                    if not tracking_data['calculo_concluido_date'] or message_date > tracking_data['calculo_concluido_date']:
+                        tracking_data['calculo_concluido_date'] = message_date
+                        tracking_data['calculo_concluido_user'] = _extract_relational_name(author_id)
+                        
+                elif _stage_matches_target(new_value, 'Revisão de cálculo', stage_names):
+                    if not tracking_data['revisao_de_calculo_date'] or message_date > tracking_data['revisao_de_calculo_date']:
+                        tracking_data['revisao_de_calculo_date'] = message_date
+                        tracking_data['revisao_de_calculo_user'] = _extract_relational_name(author_id)
+                        
+                elif _stage_matches_target(new_value, 'Apresentação', stage_names):
+                    if not tracking_data['apresentacao_date'] or message_date > tracking_data['apresentacao_date']:
+                        tracking_data['apresentacao_date'] = message_date
+                        tracking_data['apresentacao_user'] = _extract_relational_name(author_id)
+                        
+                elif _stage_matches_target(new_value, 'Em negociação', stage_names):
+                    if not tracking_data['em_negociacao_date'] or message_date > tracking_data['em_negociacao_date']:
+                        tracking_data['em_negociacao_date'] = message_date
+                        tracking_data['em_negociacao_user'] = _extract_relational_name(author_id)
         
         # Fallback final: Analisar corpo das mensagens para encontrar mudanças de estágio
         if not any(tracking_data.values()):
             logger.debug(f"Fallback: analisando {len(messages)} mensagens por conteúdo")
+            fallback_changes = []
+            
             for message in messages:
                 body = message.get('body', '')
                 message_date = message.get('date')
@@ -1113,19 +1111,73 @@ async def get_opportunity_stage_tracking_data(opportunity_id: int) -> Dict[str, 
                 if ('Estágio' in body or 'Stage' in body or 'estágio' in body.lower()) and message_date:
                     logger.debug(f"Mensagem de estágio encontrada para oportunidade {opportunity_id}: {body[:100]}...")
                     
-                    # Buscar estágios específicos no corpo da mensagem  
-                    if _contains_stage_reference(body, 'Cálculo pendente', stage_names):
-                        if not tracking_data['calculo_pendente_date']:
-                            tracking_data['calculo_pendente_date'] = message_date
-                            tracking_data['calculo_pendente_user'] = _extract_relational_name(author_id)
-                            
-                    elif _contains_stage_reference(body, 'Em processamento', stage_names):
-                        if not tracking_data['em_processamento_date']:
-                            tracking_data['em_processamento_date'] = message_date
-                            
-                    elif _contains_stage_reference(body, 'Cálculo concluído', stage_names):
-                        if not tracking_data['calculo_concluido_date']:
-                            tracking_data['calculo_concluido_date'] = message_date
+                    # Buscar estágios específicos no corpo da mensagem e adicionar à lista
+                    stage_targets = ['Prospect', 'Primeira reunião', 'Aguardando documentação', 'Cálculo pendente', 
+                                   'Em processamento', 'Cálculo concluído', 'Revisão de cálculo', 'Apresentação', 'Em negociação']
+                    
+                    for stage_target in stage_targets:
+                        if _contains_stage_reference(body, stage_target, stage_names):
+                            fallback_changes.append({
+                                'date': message_date,
+                                'stage_target': stage_target,
+                                'author_id': author_id
+                            })
+                            break  # Só um estágio por mensagem
+            
+            # Ordenar mudanças do fallback por data (mais recentes primeiro)
+            fallback_changes.sort(key=lambda x: x['date'], reverse=True)
+            
+            # Processar mudanças do fallback ordenadas
+            for change in fallback_changes:
+                message_date = change['date']
+                stage_target = change['stage_target']
+                author_id = change['author_id']
+                
+                # Mapear estágio para campo correspondente
+                if stage_target == 'Prospect':
+                    if not tracking_data['prospect_date'] or message_date > tracking_data['prospect_date']:
+                        tracking_data['prospect_date'] = message_date
+                        tracking_data['prospect_user'] = _extract_relational_name(author_id)
+                        
+                elif stage_target == 'Primeira reunião':
+                    if not tracking_data['primeira_reuniao_date'] or message_date > tracking_data['primeira_reuniao_date']:
+                        tracking_data['primeira_reuniao_date'] = message_date
+                        tracking_data['primeira_reuniao_user'] = _extract_relational_name(author_id)
+                        
+                elif stage_target == 'Aguardando documentação':
+                    if not tracking_data['aguardando_documentacao_date'] or message_date > tracking_data['aguardando_documentacao_date']:
+                        tracking_data['aguardando_documentacao_date'] = message_date
+                        tracking_data['aguardando_documentacao_user'] = _extract_relational_name(author_id)
+                        
+                elif stage_target == 'Cálculo pendente':
+                    if not tracking_data['calculo_pendente_date'] or message_date > tracking_data['calculo_pendente_date']:
+                        tracking_data['calculo_pendente_date'] = message_date
+                        tracking_data['calculo_pendente_user'] = _extract_relational_name(author_id)
+                        
+                elif stage_target == 'Em processamento':
+                    if not tracking_data['em_processamento_date'] or message_date > tracking_data['em_processamento_date']:
+                        tracking_data['em_processamento_date'] = message_date
+                        tracking_data['em_processamento_user'] = _extract_relational_name(author_id)
+                        
+                elif stage_target == 'Cálculo concluído':
+                    if not tracking_data['calculo_concluido_date'] or message_date > tracking_data['calculo_concluido_date']:
+                        tracking_data['calculo_concluido_date'] = message_date
+                        tracking_data['calculo_concluido_user'] = _extract_relational_name(author_id)
+                        
+                elif stage_target == 'Revisão de cálculo':
+                    if not tracking_data['revisao_de_calculo_date'] or message_date > tracking_data['revisao_de_calculo_date']:
+                        tracking_data['revisao_de_calculo_date'] = message_date
+                        tracking_data['revisao_de_calculo_user'] = _extract_relational_name(author_id)
+                        
+                elif stage_target == 'Apresentação':
+                    if not tracking_data['apresentacao_date'] or message_date > tracking_data['apresentacao_date']:
+                        tracking_data['apresentacao_date'] = message_date
+                        tracking_data['apresentacao_user'] = _extract_relational_name(author_id)
+                        
+                elif stage_target == 'Em negociação':
+                    if not tracking_data['em_negociacao_date'] or message_date > tracking_data['em_negociacao_date']:
+                        tracking_data['em_negociacao_date'] = message_date
+                        tracking_data['em_negociacao_user'] = _extract_relational_name(author_id)
         
         # Estratégia final: Se nenhum tracking foi encontrado, tentar usar dados existentes na oportunidade
         if not any(tracking_data.values()):
@@ -1165,13 +1217,33 @@ async def get_opportunity_stage_tracking_data(opportunity_id: int) -> Dict[str, 
                 # Se o estágio atual for um dos que estamos rastreando e não temos data, usar write_date
                 elif current_stage:
                     write_date = opp.get('write_date')
-                    if _stage_matches_target(current_stage, 'Cálculo pendente', stage_names):
+                    if _stage_matches_target(current_stage, 'Prospect', stage_names):
+                        tracking_data['prospect_date'] = write_date
+                        tracking_data['prospect_user'] = current_user
+                    elif _stage_matches_target(current_stage, 'Primeira reunião', stage_names):
+                        tracking_data['primeira_reuniao_date'] = write_date
+                        tracking_data['primeira_reuniao_user'] = current_user
+                    elif _stage_matches_target(current_stage, 'Aguardando documentação', stage_names):
+                        tracking_data['aguardando_documentacao_date'] = write_date
+                        tracking_data['aguardando_documentacao_user'] = current_user
+                    elif _stage_matches_target(current_stage, 'Cálculo pendente', stage_names):
                         tracking_data['calculo_pendente_date'] = write_date
                         tracking_data['calculo_pendente_user'] = current_user
                     elif _stage_matches_target(current_stage, 'Em processamento', stage_names):
                         tracking_data['em_processamento_date'] = write_date
+                        tracking_data['em_processamento_user'] = current_user
                     elif _stage_matches_target(current_stage, 'Cálculo concluído', stage_names):
                         tracking_data['calculo_concluido_date'] = write_date
+                        tracking_data['calculo_concluido_user'] = current_user
+                    elif _stage_matches_target(current_stage, 'Revisão de cálculo', stage_names):
+                        tracking_data['revisao_de_calculo_date'] = write_date
+                        tracking_data['revisao_de_calculo_user'] = current_user
+                    elif _stage_matches_target(current_stage, 'Apresentação', stage_names):
+                        tracking_data['apresentacao_date'] = write_date
+                        tracking_data['apresentacao_user'] = current_user
+                    elif _stage_matches_target(current_stage, 'Em negociação', stage_names):
+                        tracking_data['em_negociacao_date'] = write_date
+                        tracking_data['em_negociacao_user'] = current_user
 
         logger.info(f"Dados de rastreamento extraídos para oportunidade {opportunity_id}")
         return tracking_data
@@ -1239,9 +1311,15 @@ def _contains_stage_reference(body: str, stage_name: str, stage_names: Dict[int,
     # Busca específica para padrões comuns do Odoo
     # Ex: "Em processamento → Cálculo concluído"
     stage_patterns = {
+        'prospect': ['prospect', 'prospec'],
+        'primeira reunião': ['primeira reunião', 'primeira reuniao', 'primeirareuniao', 'primeira_reuniao'],
+        'aguardando documentação': ['aguardando documentação', 'aguardando documentacao', 'aguardandodocumentacao', 'aguardando_documentacao'],
         'cálculo pendente': ['calculo pendente', 'calculopendente', 'calculo_pendente'],
         'em processamento': ['em processamento', 'emprocessamento', 'em_processamento'],
-        'cálculo concluído': ['calculo concluido', 'calculoconcluido', 'calculo_concluido', 'cálculo concluído']
+        'cálculo concluído': ['calculo concluido', 'calculoconcluido', 'calculo_concluido', 'cálculo concluído'],
+        'revisão de cálculo': ['revisão de cálculo', 'revisao de calculo', 'revisaodecalculo', 'revisao_de_calculo'],
+        'apresentação': ['apresentação', 'apresentacao'],
+        'em negociação': ['em negociação', 'em negociacao', 'emnegociacao', 'em_negociacao', 'negociação', 'negociacao']
     }
     
     target_patterns = stage_patterns.get(stage_name.lower(), [])
@@ -1267,35 +1345,29 @@ def _stage_matches_target(stage_value: str, target_stage: str, stage_names: Dict
     if not stage_value:
         return False
     
+    # Função para normalizar texto (remover acentos, etc.)
+    def normalize_text(text):
+        import unicodedata
+        # Remover acentos
+        text = unicodedata.normalize('NFD', text)
+        text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
+        return text.lower().strip().replace(' ', '')
+    
     # Normalizar strings para comparação
-    target_lower = target_stage.lower().strip()
-    stage_lower = str(stage_value).lower().strip()
+    target_normalized = normalize_text(target_stage)
+    stage_normalized = normalize_text(str(stage_value))
     
-    # Busca direta no nome
-    if target_lower in stage_lower:
+    # Busca direta no nome normalizado
+    if target_normalized in stage_normalized or stage_normalized in target_normalized:
         return True
-    
-    # Buscar por padrões específicos
-    stage_patterns = {
-        'cálculo pendente': ['calculo pendente', 'calculopendente', 'calculo_pendente', 'pendente'],
-        'em processamento': ['em processamento', 'emprocessamento', 'em_processamento', 'processamento'],
-        'cálculo concluído': ['calculo concluido', 'calculoconcluido', 'calculo_concluido', 'concluido', 'concluído']
-    }
-    
-    target_patterns = stage_patterns.get(target_lower, [])
-    for pattern in target_patterns:
-        if pattern in stage_lower:
-            return True
     
     # Verificar se é um ID numérico e corresponde a um estágio conhecido
     try:
         stage_id = int(stage_value)
-        stage_name = stage_names.get(stage_id, '').lower()
+        stage_name = stage_names.get(stage_id, '')
         if stage_name:
-            for pattern in target_patterns:
-                if pattern in stage_name:
-                    return True
-            if target_lower in stage_name:
+            stage_name_normalized = normalize_text(stage_name)
+            if target_normalized in stage_name_normalized or stage_name_normalized in target_normalized:
                 return True
     except ValueError:
         pass

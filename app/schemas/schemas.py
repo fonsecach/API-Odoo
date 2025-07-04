@@ -523,6 +523,9 @@ class OpportunityPowerBIData(BaseModel):
     date_closed: Optional[Any] = None
     x_studio_tipo_de_oportunidade_1: Optional[Any] = None
     
+    # Additional fields for new mappings
+    x_studio_data_calculo_pendente: Optional[Any] = None
+    
     # Additional fields from JSON
     phone: Optional[Any] = None
     email_from: Optional[Any] = None
@@ -530,10 +533,24 @@ class OpportunityPowerBIData(BaseModel):
     zip: Optional[Any] = None
     
     # Stage tracking fields from mail.message
+    stage_tracking_prospect_date: Optional[Any] = None
+    stage_tracking_prospect_user: Optional[Any] = None
+    stage_tracking_primeira_reuniao_date: Optional[Any] = None
+    stage_tracking_primeira_reuniao_user: Optional[Any] = None
+    stage_tracking_aguardando_documentacao_date: Optional[Any] = None
+    stage_tracking_aguardando_documentacao_user: Optional[Any] = None
     stage_tracking_calculo_pendente_date: Optional[Any] = None
-    stage_tracking_em_processamento_date: Optional[Any] = None
-    stage_tracking_calculo_concluido_date: Optional[Any] = None
     stage_tracking_calculo_pendente_user: Optional[Any] = None
+    stage_tracking_em_processamento_date: Optional[Any] = None
+    stage_tracking_em_processamento_user: Optional[Any] = None
+    stage_tracking_calculo_concluido_date: Optional[Any] = None
+    stage_tracking_calculo_concluido_user: Optional[Any] = None
+    stage_tracking_revisao_de_calculo_date: Optional[Any] = None
+    stage_tracking_revisao_de_calculo_user: Optional[Any] = None
+    stage_tracking_apresentacao_date: Optional[Any] = None
+    stage_tracking_apresentacao_user: Optional[Any] = None
+    stage_tracking_em_negociacao_date: Optional[Any] = None
+    stage_tracking_em_negociacao_user: Optional[Any] = None
 
 
 class OpportunityPowerBIResponse(BaseModel):
@@ -575,7 +592,7 @@ class OpportunityPowerBIResponse(BaseModel):
     Email: Optional[Any] = Field(None, alias="email_from")
     Cidade: Optional[Any] = Field(None, alias="city")
     CEP: Optional[Any] = Field(None, alias="zip")
-    DataCalculoPendente: Optional[Any] = Field(None, alias="stage_tracking_calculo_pendente_date")
-    DataEmProcessamento: Optional[Any] = Field(None, alias="stage_tracking_em_processamento_date")
-    DataCalculoConcluido: Optional[Any] = Field(None, alias="stage_tracking_calculo_concluido_date")
-    UsuarioRealizouCalculo: Optional[Any] = Field(None, alias="stage_tracking_calculo_pendente_user")
+    DataCalculoPendente: Optional[Any] = Field(None, alias="x_studio_data_calculo_pendente")
+    DataEmProcessamento: Optional[Any] = Field(None, alias="x_studio_data_em_processamento_1")
+    DataCalculoConcluido: Optional[Any] = Field(None, alias="x_studio_data_calculo_concluido")
+    UsuarioCalculoConcluido: Optional[Any] = Field(None, alias="x_studio_usuario_calculo_concluido")

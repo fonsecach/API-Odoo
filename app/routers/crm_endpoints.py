@@ -6,11 +6,9 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.schemas import OpportunityPowerBIData
 from app.services.crm_service import (
     fetch_opportunities_for_powerbi, 
-    fetch_opportunities_for_powerbi_by_company, 
     fetch_opportunity_by_id_for_powerbi, 
     get_opportunity_stage_tracking_data,
     fetch_opportunities_for_powerbi_with_pt_names,
-    fetch_opportunities_for_powerbi_by_company_with_pt_names,
     fetch_opportunity_by_id_for_powerbi_with_pt_names
 )
 
@@ -52,43 +50,6 @@ async def get_opportunities_powerbi_endpoint():
             detail="Erro interno do servidor ao buscar dados para PowerBI"
         )
 
-
-@router.get(
-    '/powerbi/company/{company_id}',
-    summary='Buscar oportunidades de uma empresa específica para PowerBI',
-    description='Endpoint para buscar oportunidades de uma empresa específica formatadas para PowerBI com nomes em português',
-    response_model=List[dict],
-    tags=['PowerBI']
-)
-async def get_opportunities_powerbi_by_company_endpoint(company_id: int):
-    """
-    Retorna todas as oportunidades de uma empresa específica do CRM formatadas para PowerBI.
-    Os campos são retornados com nomes em português e remove campos: probability, street, country_id.
-    
-    Args:
-        company_id: ID da empresa (partner_id) para filtrar as oportunidades.
-    
-    Returns:
-        Lista de oportunidades da empresa especificada com todos os campos de negócio.
-    """
-    try:
-        opportunities = await fetch_opportunities_for_powerbi_by_company_with_pt_names(company_id)
-        
-        if not opportunities:
-            logger.info(f"Nenhuma oportunidade encontrada para a empresa ID {company_id}")
-            return []
-        
-        logger.info(f"Retornando {len(opportunities)} oportunidades da empresa {company_id} para PowerBI")
-        return opportunities
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Erro inesperado no endpoint PowerBI para empresa {company_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro interno do servidor ao buscar dados da empresa {company_id} para PowerBI"
-        )
 
 
 @router.get(
