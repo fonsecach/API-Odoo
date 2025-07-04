@@ -532,25 +532,13 @@ class OpportunityPowerBIData(BaseModel):
     city: Optional[Any] = None
     zip: Optional[Any] = None
     
-    # Stage tracking fields from mail.message
-    stage_tracking_prospect_date: Optional[Any] = None
-    stage_tracking_prospect_user: Optional[Any] = None
-    stage_tracking_primeira_reuniao_date: Optional[Any] = None
-    stage_tracking_primeira_reuniao_user: Optional[Any] = None
-    stage_tracking_aguardando_documentacao_date: Optional[Any] = None
-    stage_tracking_aguardando_documentacao_user: Optional[Any] = None
+    # Stage tracking fields (apenas os utilizados)
     stage_tracking_calculo_pendente_date: Optional[Any] = None
     stage_tracking_calculo_pendente_user: Optional[Any] = None
     stage_tracking_em_processamento_date: Optional[Any] = None
     stage_tracking_em_processamento_user: Optional[Any] = None
     stage_tracking_calculo_concluido_date: Optional[Any] = None
     stage_tracking_calculo_concluido_user: Optional[Any] = None
-    stage_tracking_revisao_de_calculo_date: Optional[Any] = None
-    stage_tracking_revisao_de_calculo_user: Optional[Any] = None
-    stage_tracking_apresentacao_date: Optional[Any] = None
-    stage_tracking_apresentacao_user: Optional[Any] = None
-    stage_tracking_em_negociacao_date: Optional[Any] = None
-    stage_tracking_em_negociacao_user: Optional[Any] = None
 
 
 class OpportunityPowerBIResponse(BaseModel):
