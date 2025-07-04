@@ -6,10 +6,11 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.schemas import OpportunityPowerBIData
 from app.services.crm_service import (
     fetch_opportunities_for_powerbi, 
-    fetch_opportunity_by_id_for_powerbi, 
-    get_opportunity_stage_tracking_data,
-    fetch_opportunities_for_powerbi_with_pt_names,
-    fetch_opportunity_by_id_for_powerbi_with_pt_names
+    fetch_opportunity_by_id_for_powerbi
+)
+from app.services.crm_service_optimized import (
+    fetch_opportunities_for_powerbi_with_pt_names_optimized,
+    fetch_opportunity_by_id_for_powerbi_with_pt_names_optimized
 )
 
 logger = logging.getLogger(__name__)
@@ -18,8 +19,8 @@ router = APIRouter(prefix='/opportunities', tags=['Oportunidades'])
 
 @router.get(
     '/powerbi',
-    summary='Buscar dados de oportunidades para PowerBI',
-    description='Endpoint especializado para fornecer dados das oportunidades CRM formatados para consumo pelo PowerBI com nomes em português',
+    summary='Buscar dados de oportunidades para PowerBI (OTIMIZADO)',
+    description='Endpoint especializado para fornecer dados das oportunidades CRM formatados para consumo pelo PowerBI com nomes em português. Versão otimizada para performance.',
     response_model=List[dict]
 )
 async def get_opportunities_powerbi_endpoint():
@@ -31,13 +32,13 @@ async def get_opportunities_powerbi_endpoint():
         Lista completa de oportunidades com todos os campos de negócio formatados.
     """
     try:
-        opportunities = await fetch_opportunities_for_powerbi_with_pt_names()
+        opportunities = await fetch_opportunities_for_powerbi_with_pt_names_optimized()
         
         if not opportunities:
             logger.info("Nenhuma oportunidade encontrada para PowerBI")
             return []
         
-        logger.info(f"Retornando {len(opportunities)} oportunidades para PowerBI")
+        logger.debug(f"Retornando {len(opportunities)} oportunidades para PowerBI (otimizado)")
         return opportunities
         
     except HTTPException:
@@ -53,14 +54,14 @@ async def get_opportunities_powerbi_endpoint():
 
 @router.get(
     '/powerbi/{opportunity_id}',
-    summary='Buscar uma oportunidade específica por ID para PowerBI',
-    description='Endpoint para buscar uma oportunidade específica por ID formatada para PowerBI com nomes em português',
+    summary='Buscar uma oportunidade específica por ID para PowerBI (OTIMIZADO)',
+    description='Endpoint otimizado para buscar uma oportunidade específica por ID formatada para PowerBI com nomes em português',
     response_model=dict,
 )
 async def get_opportunity_powerbi_by_id_endpoint(opportunity_id: int):
     """
     Retorna uma oportunidade específica do CRM formatada para PowerBI.
-    Os campos são retornados com nomes em português e remove campos: probability, street, country_id.
+    Os campos são retornados com nomes em português. Versão otimizada para performance.
     
     Args:
         opportunity_id: ID da oportunidade para buscar.
@@ -72,8 +73,8 @@ async def get_opportunity_powerbi_by_id_endpoint(opportunity_id: int):
         HTTPException: 404 se a oportunidade não for encontrada.
     """
     try:
-        opportunity = await fetch_opportunity_by_id_for_powerbi_with_pt_names(opportunity_id)
-        logger.info(f"Oportunidade ID {opportunity_id} retornada para PowerBI")
+        opportunity = await fetch_opportunity_by_id_for_powerbi_with_pt_names_optimized(opportunity_id)
+        logger.debug(f"Oportunidade ID {opportunity_id} retornada para PowerBI (otimizado)")
         return opportunity
         
     except HTTPException:
@@ -86,81 +87,8 @@ async def get_opportunity_powerbi_by_id_endpoint(opportunity_id: int):
         )
 
 
-# @router.get(
-#     '/{opportunity_id}/stage-tracking',
-#     summary='Buscar dados de rastreamento de estágios de uma oportunidade',
-#     description='Endpoint para buscar datas de mudanças de estágio específicos do mail.message',
-#     tags=['Rastreamento']
-# )
-# async def get_opportunity_stage_tracking_endpoint(opportunity_id: int, debug: bool = False):
-#     """
-#     Retorna dados de rastreamento de estágios de uma oportunidade específica.
-    
-#     Busca no mail.message as datas quando a oportunidade passou pelos estágios:
-#     - Cálculo Pendente
-#     - Em Processamento  
-#     - Cálculo Concluído
-    
-#     Args:
-#         opportunity_id: ID da oportunidade para buscar rastreamento.
-#         debug: Se True, retorna informações de debug adicionais.
-    
-#     Returns:
-#         Dicionário com as datas dos estágios e informações do usuário.
-#     """
-#     try:
-#         tracking_data = await get_opportunity_stage_tracking_data(opportunity_id)
-        
-#         if debug:
-#             # Buscar mensagens brutas para debug
-#             from app.services.crm_service import get_odoo_client
-#             odoo_client = await get_odoo_client()
-#             messages = await odoo_client.search_read(
-#                 'mail.message',
-#                 domain=[
-#                     ['model', '=', 'crm.lead'],
-#                     ['res_id', '=', opportunity_id]
-#                 ],
-#                 fields=['id', 'date', 'body', 'author_id', 'message_type', 'tracking_value_ids'],
-#                 order='date asc'
-#             )
-            
-#             # Buscar tracking values
-#             tracking_values = await odoo_client.search_read(
-#                 'mail.tracking.value',
-#                 domain=[],
-#                 fields=['id', 'field', 'old_value_char', 'new_value_char', 'mail_message_id'],
-#                 limit=1000
-#             )
-            
-#             # Buscar estágios para debug
-#             stages = await odoo_client.search_read(
-#                 'crm.stage',
-#                 domain=[],
-#                 fields=['id', 'name']
-#             )
-            
-#             message_ids = [msg['id'] for msg in messages]
-#             relevant_tracking = [
-#                 tv for tv in tracking_values 
-#                 if tv.get('mail_message_id') and tv['mail_message_id'][0] in message_ids
-#             ]
-            
-#             tracking_data['debug_messages'] = messages
-#             tracking_data['debug_tracking_values'] = relevant_tracking
-#             tracking_data['debug_stages'] = stages
-        
-#         logger.info(f"Dados de rastreamento retornados para oportunidade {opportunity_id}")
-#         return tracking_data
-        
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         logger.error(f"Erro inesperado no endpoint de rastreamento para oportunidade {opportunity_id}: {str(e)}")
-#         raise HTTPException(
-#             status_code=500,
-#             detail=f"Erro interno do servidor ao buscar dados de rastreamento da oportunidade {opportunity_id}"
-#         )
+
+
 
 
 # @router.get('/', summary='Lista oportunidades cadastradas')

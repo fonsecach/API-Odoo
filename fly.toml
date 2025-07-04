@@ -18,4 +18,4 @@ app = "/app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001"
 [[vm]]
 cpu_kind = "shared"
 cpus = 1
-memory = "512mb"
+memory = "1024mb"

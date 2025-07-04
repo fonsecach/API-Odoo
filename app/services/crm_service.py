@@ -191,112 +191,12 @@ async def create_opportunity_intelligent_async(
         )
 
 
-async def fetch_opportunities_for_powerbi_with_pt_names() -> List[dict]:
-    """
-    Busca todas as oportunidades do CRM com campos em português para PowerBI.
-    Remove campos conforme solicitado: probability, street, country_id
-    
-    Returns:
-        Lista de dicionários com dados das oportunidades com nomes em português.
-    """
-    try:
-        # Usa a função existente para buscar dados processados
-        opportunities_data = await fetch_opportunities_for_powerbi()
-        
-        # Mapeia para o formato com nomes em português
-        portuguese_opportunities = []
-        for opp in opportunities_data:
-            opp_dict = opp.dict() if hasattr(opp, 'dict') else opp
-            mapped_opp = _map_to_powerbi_response(opp_dict)  
-            portuguese_opportunities.append(mapped_opp)
-        
-        logger.info(f"Processadas {len(portuguese_opportunities)} oportunidades com nomes em português para PowerBI")
-        return portuguese_opportunities
-        
-    except Exception as e:
-        logger.error(f"Erro ao buscar oportunidades com nomes em português para PowerBI: {str(e)}")
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao buscar dados das oportunidades: {str(e)}"
-        )
-
-
-async def fetch_opportunity_by_id_for_powerbi_with_pt_names(opportunity_id: int) -> dict:
-    """
-    Busca uma oportunidade específica por ID com campos em português para PowerBI.
-    
-    Args:
-        opportunity_id: ID da oportunidade a ser buscada
-        
-    Returns:
-        Dicionário com dados da oportunidade com nomes em português.
-    """
-    try:
-        # Usa a função existente para buscar dados processados
-        opportunity_data = await fetch_opportunity_by_id_for_powerbi(opportunity_id)
-        
-        # Mapeia para o formato com nomes em português
-        opp_dict = opportunity_data.dict() if hasattr(opportunity_data, 'dict') else opportunity_data
-        mapped_opp = _map_to_powerbi_response(opp_dict)
-        
-        logger.info(f"Processada oportunidade ID {opportunity_id} com nomes em português para PowerBI")
-        return mapped_opp
-        
-    except Exception as e:
-        logger.error(f"Erro ao buscar oportunidade ID {opportunity_id} com nomes em português para PowerBI: {str(e)}")
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao buscar dados da oportunidade: {str(e)}"
-        )
 
 
 
 
-def _map_to_powerbi_response(processed_opp: dict) -> dict:
-    """
-    Mapeia dados processados de oportunidade para o formato de resposta PowerBI com nomes em português.
-    Remove campos conforme solicitado: probability, street, country_id
-    """
-    return {
-        'id': processed_opp.get('id'),
-        'CriadoEm': processed_opp.get('create_date'),
-        'Oportunidade': processed_opp.get('name'),
-        'Tese': processed_opp.get('x_studio_tese'),
-        'Cliente': processed_opp.get('partner_id'),
-        'Estado': processed_opp.get('state_id'),
-        'Vendedor': processed_opp.get('user_id'),
-        'EquipeDeVendas': processed_opp.get('team_id'),
-        'UltimaAtividade': processed_opp.get('activity_ids'),
-        'ReceitaEsperada': processed_opp.get('expected_revenue'),
-        'Estagio': processed_opp.get('stage_id'),
-        'Segmento': processed_opp.get('x_studio_categoria_economica'),
-        'Ativo': processed_opp.get('active'),
-        'StatusGanhoPerda': processed_opp.get('won_status'),
-        'MotivoDaPerda': processed_opp.get('lost_reason_id'),
-        'PrevisaoInss': processed_opp.get('x_studio_previsao_inss'),
-        'PrevisaoIpi': processed_opp.get('x_studio_previsao_ipi'),
-        'PrevisaoIrpjCsll': processed_opp.get('x_studio_previsao_irpj_e_csll'),
-        'PrevisaoPisCofins': processed_opp.get('x_studio_previsao_pis_e_cofins'),
-        'Debitos': processed_opp.get('x_studio_debitos'),
-        'UltimaAtualizacaoDeEstagio': processed_opp.get('x_studio_ultima_atualizacao_de_estagio'),
-        'TicketDePrimeiraAnalise': processed_opp.get('x_studio_ticket_de_1_anlise'),
-        'TicketDeSegundaAnalise': processed_opp.get('x_studio_ticket_de_2_analise'),
-        'Probabilidade': processed_opp.get('x_studio_probabilidade'),
-        'ReceitaBrutaEsperada': processed_opp.get('x_studio_receita_bruta_esperada'),
-        'FaturamentoEsperado': processed_opp.get('x_studio_faturamento_esperado'),
-        'Honorarios': processed_opp.get('x_studio_honorrios_1'),
-        'UltimaAtualizacao': processed_opp.get('write_date'),
-        'DataDeGanhoOuPerda': processed_opp.get('date_closed'),
-        'TipoDeOportunidade': processed_opp.get('x_studio_tipo_de_oportunidade_1'),
-        'Telefone': processed_opp.get('phone'),
-        'Email': processed_opp.get('email_from'),
-        'Cidade': processed_opp.get('city'),
-        'CEP': processed_opp.get('zip'),
-        'DataCalculoPendente': processed_opp.get('x_studio_data_calculo_pendente'),
-        'DataEmProcessamento': processed_opp.get('x_studio_data_em_processamento_1'),
-        'DataCalculoConcluido': processed_opp.get('x_studio_data_calculo_concluido'),
-        'UsuarioCalculoConcluido': processed_opp.get('x_studio_usuario_calculo_concluido'),
-    }
+
+
 
 
 
